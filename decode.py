@@ -50,21 +50,27 @@ class Decoder:
     # === PREPROCESS ===
     print("preprocessing data...", end="")
 
+    # identifiers
+    epoch_id = 4
+    cells_id = 'Jcells'
+    posit_id = 'Jpositiondata'
+    rippl_id = 'Jrip'
+
     # gets start and end times of each epoch
-    self.pre_epoch  = np.concatenate(spk['epochs'][4,1:3]).ravel()
-    self.maze_epoch = np.concatenate(spk['epochs'][4,3:5]).ravel()
-    self.post_epoch = np.concatenate(spk['epochs'][4,5:7]).ravel()
+    self.pre_epoch  = np.concatenate(spk['epochs'][epoch_id,1:3]).ravel()
+    self.maze_epoch = np.concatenate(spk['epochs'][epoch_id,3:5]).ravel()
+    self.post_epoch = np.concatenate(spk['epochs'][epoch_id,5:7]).ravel()
     
     # looks at hippocampal neuron spike times only
-    self.hc = [hc['tspk'].flatten() for hc in spk['Jcells'][spk['Jcells']['area'] == 'hc']]
+    self.hc = [hc['tspk'].flatten() for hc in spk[cells_id][spk[cells_id]['area'] == 'hc']]
     
     # ignores 0,0 positions (erroneous)
-    self.pos = loc['Jpositiondata'][~np.all(loc['Jpositiondata'][:,1:3]==0,1),:]
+    self.pos = loc[posit_id][~np.all(loc[posit_id][:,1:3]==0,1),:]
     self.pos[:,0] = self.pos[:,0]/1e6
     self.maze_epoch = [max(self.maze_epoch[0],min(self.pos[:,0])), min(self.maze_epoch[1],max(self.pos[:,0]))]
 
     # get ripple periods (+/- 100ms around detected SPW-R peak times)
-    self.rip = merge_intervals(np.append(rst['Jrip']-0.1, rst['Jrip']+0.1, axis=1))
+    self.rip = merge_intervals(np.append(rst[rippl_id]-0.1, rst[rippl_id]+0.1, axis=1))
     
     print("COMPLETE.")
     # === PARAMETERS ===
@@ -72,9 +78,6 @@ class Decoder:
     # discretisation parameters
     self.n_spatial_bins = 32
     self.spatial_bin_size = np.amax(self.pos[:,1:3],0)/(self.n_spatial_bins-1)
-    self.time_bin_size = 1
-    self.n_time_bins = int(np.ceil(np.diff(self.maze_epoch)/self.time_bin_size))
-    self.tau = 10
 
     # === DECODING ===
     
@@ -113,23 +116,28 @@ class Decoder:
   def pos_at_time(self,times):
     return np.append(np.array([times]).T, self.pos[find_closest(self.pos[:,0], times), 1:3], axis=1)
 
-  def approx_N_and_Pos(self):
-    tidx = np.floor((self.pos[:,0]-np.min(self.pos[:,0]))/self.time_bin_size)
-    pos = np.round(np.array([np.mean(self.pos[tidx==i,1:3],axis=0) for i in range(self.n_time_bins)])/self.spatial_bin_size).astype(int)
-    N = np.empty((len(self.hc),self.n_time_bins))
+  def approx_n_and_pos(self,time_bin_size):
+    n_time_bins = int(np.ceil(np.diff(self.maze_epoch)/time_bin_size))
+    tidx = np.floor((self.pos[:,0]-np.min(self.pos[:,0]))/time_bin_size)
+    pos = np.round(np.array([np.mean(self.pos[tidx==i,1:3],axis=0) for i in range(n_time_bins)])/self.spatial_bin_size).astype(int)
+    N = np.empty((len(self.hc),n_time_bins))
     for i in range(0,len(self.hc)):
       print("processing neurons: %d / %d\r" % (i, len(self.hc)), end="")
       tspk = self.get_spike_times(i,self.maze_epoch)
-      tidx = np.floor((tspk-np.min(tspk))/self.time_bin_size)
-      N[i] = np.array([np.sum(tidx==i) for i in range(self.n_time_bins)])
+      tidx = np.floor((tspk-np.min(tspk))/time_bin_size)
+      N[i] = np.array([np.sum(tidx==i) for i in range(n_time_bins)])
     print("processing neurons...COMPLETE.")
     print("all done.")
     return (N, pos)
 
-  def P_NgivenX(self,n,x):
-    xidx = tuple(x)
+  def prob_n_given_x(self,n,x,tau):
+    xidx = tuple(x) # TODO: check these coordinates are right way round! Rem. arrays accessed row-column (unlike cart.)
     ngtz = n[n > 0]
-    return np.prod([((self.tau*self.f[i][xidx]**n[i])/factorial(n[i]))*np.exp(-self.tau*self.f[i][xidx]) for i in range(len(ngtz))])
+    return np.prod([((tau*self.f[i][xidx])**n[i]/factorial(n[i]))*np.exp(-tau*self.f[i][xidx]) for i in range(len(ngtz))])
+
+  def ex_n_given_x(self,x,tau):
+    xidx = tuple(x) # TODO: check these coordinates are right way round! Rem. arrays accessed row-column (unlike cart.)
+    return np.array([self.f[i][xidx]*tau for i in range(len(self.hc))])
 
 decoder = Decoder()
 
@@ -137,20 +145,23 @@ decoder = Decoder()
 #  plt.imshow(decoder.f[i],origin='lower')
 #  plt.show()
 
-truepos = decoder.pos[decoder.pos[:,0]<=decoder.maze_epoch[0]+1,:]
-trueposmat = decoder.posmat(truepos)
-print(truepos)
-plt.imshow(trueposmat,origin='lower')
-plt.show()
-
-(N, pos) = decoder.approx_N_and_Pos()
-
-#for i in range(len(decoder.hc)):
-#  tspk = decoder.get_spike_times(i,(decoder.maze_epoch[0],decoder.maze_epoch[0]+1))
-#  print(tspk)
-
-for i in range(N.shape[1]):
-  nvec = N[:,i]
-  probmat = np.array([[decoder.P_NgivenX(nvec, [x,y]) for x in range(decoder.n_spatial_bins)] for y in range(decoder.n_spatial_bins)])
-  plt.imshow(probmat,origin='lower')
+if 0:
+  truepos = decoder.pos[decoder.pos[:,0]<=decoder.maze_epoch[0]+1,:]
+  trueposmat = decoder.posmat(truepos)
+  print(truepos)
+  plt.imshow(trueposmat,origin='lower')
   plt.show()
+  (N, pos) = decoder.approx_n_and_pos(1)
+  #for i in range(len(decoder.hc)):
+  #  tspk = decoder.get_spike_times(i,(decoder.maze_epoch[0],decoder.maze_epoch[0]+1))
+  #  print(tspk)
+  for i in range(N.shape[1]):
+    nvec = N[:,i]
+    probmat = np.array([[decoder.prob_n_given_x(nvec,(y,x),1) for x in range(decoder.n_spatial_bins)] for y in range(decoder.n_spatial_bins)])
+    plt.imshow(probmat,origin='lower')
+    plt.show()
+
+if 1:
+  fr = np.round(decoder.ex_n_given_x([21,3],1))
+  np.set_printoptions(suppress=True)
+  print(fr)
