@@ -74,33 +74,40 @@ class Decoder:
     
     print("COMPLETE.")
     # === PARAMETERS ===
+    print("setting parameters...", end="")
 
     # discretisation parameters
     self.n_spatial_bins = 32
     self.spatial_bin_size = np.amax(self.pos[:,1:3],0)/(self.n_spatial_bins-1)
 
-    # === DECODING ===
+    print("COMPLETE.")
+    print("all done.")
     
+  def decode(self,interval):
     # calculate (approximate) occupancy (total time spent in location bins)
     print("calculating 2D occupancy map...", end="")
-    occ = self.posmat(self.pos,np.diff(self.maze_epoch)) # count no. ticks in each pos-bin & norm. by total dur.
-    posmask = occ > 0                                    # any pos-bin that was accessed marked accessible
+    occ = self.posmat(self.get_pos(interval),interval[1]-interval[0]) # count no. ticks in each pos-bin & norm. by total dur.
+    posmask = occ > 0                                                 # any pos-bin that was accessed marked accessible
     accmask = np.array([[posmask[y,x] or sum_neighbours(posmask,x,y)>2 for x in range(posmask.shape[0])] for y in range(posmask.shape[1])])
     print("COMPLETE.")
     
     # approximate position of neuron firing
-    self.f = np.empty((len(self.hc),self.n_spatial_bins,self.n_spatial_bins))
+    f = np.empty((len(self.hc),self.n_spatial_bins,self.n_spatial_bins))
     for i in range(0,len(self.hc)):
       print("processing neurons: %d / %d\r" % (i, len(self.hc)), end="")
-      tspk = self.get_spike_times(i,self.maze_epoch)         # get times neuron spiked during maze epoch
-      self.f[i] = self.posmat(self.pos_at_time(tspk))        # count number of spikes occuring at each pos-bin
-      self.f[i][posmask] = self.f[i][posmask] / occ[posmask] # fr = spike count / time spent in each pos-bin
-      self.f[i] = gaussian_filter(self.f[i],1)*accmask     # blur a little
+      tspk = self.get_spike_times(i,interval)      # get times neuron spiked during interval
+      f[i] = self.posmat(self.pos_at_time(tspk))   # count number of spikes occuring at each pos-bin
+      f[i][posmask] = f[i][posmask] / occ[posmask] # fr = spike count / time spent in each pos-bin
+      f[i] = gaussian_filter(f[i],1)*accmask       # blur a little
     print("processing neurons...COMPLETE.")
     print("all done.")
-
-  def get_spike_times(self, i, interval):
+    return f
+    
+  def get_spike_times(self,i,interval):
     return self.hc[i][np.logical_and(interval[0]<=self.hc[i], self.hc[i]<=interval[1])]
+
+  def get_pos(self,interval):
+    return self.pos[np.logical_and(interval[0]<=self.pos[:,0], self.pos[:,0]<=interval[1]),:]
 
   def posmat(self,pos,a=None):
     bin_pos = np.round(pos[:,1:3]/self.spatial_bin_size)
@@ -116,28 +123,29 @@ class Decoder:
   def pos_at_time(self,times):
     return np.append(np.array([times]).T, self.pos[find_closest(self.pos[:,0], times), 1:3], axis=1)
 
-  def approx_n_and_pos(self,time_bin_size):
-    n_time_bins = int(np.ceil(np.diff(self.maze_epoch)/time_bin_size))
-    tidx = np.floor((self.pos[:,0]-np.min(self.pos[:,0]))/time_bin_size)
-    pos = np.round(np.array([np.mean(self.pos[tidx==i,1:3],axis=0) for i in range(n_time_bins)])/self.spatial_bin_size).astype(int)
+  def approx_n_and_pos(self,interval,time_bin_size):
+    n_time_bins = int(np.ceil((interval[1]-interval[0])/time_bin_size))
+    pos = self.get_pos(interval)
+    tidx = np.floor((pos[:,0]-np.min(pos[:,0]))/time_bin_size)
+    pos = np.round(np.array([np.mean(pos[tidx==i,1:3],axis=0) for i in range(n_time_bins)])/self.spatial_bin_size).astype(int)
     N = np.empty((len(self.hc),n_time_bins))
     for i in range(0,len(self.hc)):
       print("processing neurons: %d / %d\r" % (i, len(self.hc)), end="")
-      tspk = self.get_spike_times(i,self.maze_epoch)
+      tspk = self.get_spike_times(i,interval)
       tidx = np.floor((tspk-np.min(tspk))/time_bin_size)
       N[i] = np.array([np.sum(tidx==i) for i in range(n_time_bins)])
     print("processing neurons...COMPLETE.")
     print("all done.")
     return (N, pos)
 
-  def prob_n_given_x(self,n,x,tau):
+  def prob_n_given_x(self,n,x,f,tau):
     xidx = tuple(x) # TODO: check these coordinates are right way round! Rem. arrays accessed row-column (unlike cart.)
     ngtz = n[n > 0]
-    return np.prod([((tau*self.f[i][xidx])**n[i]/factorial(n[i]))*np.exp(-tau*self.f[i][xidx]) for i in range(len(ngtz))])
+    return np.prod([((tau*f[i][xidx])**n[i]/factorial(n[i]))*np.exp(-tau*f[i][xidx]) for i in range(len(ngtz))])
 
-  def ex_n_given_x(self,x,tau):
+  def ex_n_given_x(self,x,f,tau):
     xidx = tuple(x) # TODO: check these coordinates are right way round! Rem. arrays accessed row-column (unlike cart.)
-    return np.array([self.f[i][xidx]*tau for i in range(len(self.hc))])
+    return np.array([f[i][xidx]*tau for i in range(len(self.hc))])
 
 decoder = Decoder()
 
@@ -162,6 +170,10 @@ if 0:
     plt.show()
 
 if 1:
-  fr = np.round(decoder.ex_n_given_x([21,3],1))
+  f = decoder.decode(decoder.maze_epoch)
+  fr = np.round(decoder.ex_n_given_x([21,3],f,1))
   np.set_printoptions(suppress=True)
+  (N, pos) = decoder.approx_n_and_pos(decoder.maze_epoch,1)
+  print(pos)
+  print(N[0,:])
   print(fr)
