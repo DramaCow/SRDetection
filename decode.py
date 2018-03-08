@@ -92,9 +92,9 @@ class Decoder:
     self.num_spatial_bins = 32
     self.spatial_bin_size = np.amax(self.pos[:,1:3],0)/(self.num_spatial_bins-1)
 
-    # determine tranversable areas of map
-    occ = self.occ_mat(self.pos,self.maze_epoch[1]-self.maze_epoch[0]) # count no. ticks in each pos-bin & norm. by total dur.
-    posmask = occ > 0                                                 # ah pos-bin that was accessed marked accessible
+    # calculate prior and determine tranversable areas of map
+    self.p_x = self.occ_mat(self.pos,1) # prior probability (occupancy normalised to probability)
+    posmask = self.p_x > 0              # ah pos-bin that was accessed marked accessible
     self.accmask = np.array(
       [[posmask[j,i] or sum_neighbours(posmask,i,j)>2 for i in range(posmask.shape[0])] for j in range(posmask.shape[1])]
     )
@@ -155,7 +155,7 @@ class Decoder:
     return np.prod([((tau*f[i][xidx])**n[i]/factorial(n[i]))*np.exp(-tau*f[i][xidx]) for i in range(len(ngtz))])
 
   def prob_X_given_n(self,n,f,tau):
-    prob = np.array(
+    prob = self.p_x*np.array(
       [[self.prob_n_given_x(n,(j,i),f,tau) for i in range(self.num_spatial_bins)] for j in range(self.num_spatial_bins)]
     )
     C = 1/np.sum(np.sum(prob)) if np.sum(np.sum(prob)) > 0 else 0
@@ -187,7 +187,7 @@ class Decoder:
     rand = np.random.uniform(interval[0],interval[1])
     pos = self.pos_at_time([rand])
     t = pos[0,0]
-    x = np.floor(pos[:,1:3]/self.spatial_bin_size).flatten().astype(int)
+    x = self.pos_to_x(pos[:,1:3]).flatten()
     return (t,x)
 
 decoder = Decoder()
@@ -200,8 +200,9 @@ f = decoder.calc_f_2d(decoder.maze_epoch)
 #    plt.show(block=False) ; plt.pause(0.1)
 #plt.close()
 
-if 1:
+for _ in range(100):
   [t,x] = decoder.random_t_x(decoder.maze_epoch)
+  print(x)
   print('decoding for time',t,'at x',x)
   n_ex = decoder.ex_n_given_x(x,f,0.25)
 
@@ -213,8 +214,8 @@ if 1:
   plt.imshow(probmat, cmap='gray', origin='lower')
   plt.scatter(x[1], x[0], color='r')
   plt.scatter(maxidx[1], maxidx[0], color='b')
-  plt.show()
+  plt.show(block=False) ; plt.pause(2) ; plt.close()
   l1, = plt.plot(n[:,0], 'r')
   l2, = plt.plot(n_ex, 'b')
   plt.legend([l1,l2],["actual","expected"])
-  plt.show()
+  plt.show(block=False) ; plt.pause(2) ; plt.close()
