@@ -27,24 +27,24 @@ def find_closest(A, targets):
   right = A[inds]
   return inds-(targets-left < right-targets)
 
-def sum_neighbours(M,x,y):
-  (ny,nx) = M.shape
+def sum_neighbours(M,i,j):
+  (h,w) = M.shape
   val = 0
-  if x > 0:    val += M[y,x-1]
-  if x < nx-1: val += M[y,x+1]
-  if y > 0:    val += M[y-1,x]
-  if y < ny-1: val += M[y+1,x]
+  if i > 0:   val += M[j,i-1]
+  if i < w-1: val += M[j,i+1]
+  if j > 0:   val += M[j-1,i]
+  if j < h-1: val += M[j+1,i]
   return val
 
 def matmax(M):
-  (ny,nx) = M.shape
+  (h,w) = M.shape
   maxval = -np.inf
   maxidx = [-1,-1]
-  for y in range(ny):
-    for x in range(nx):
-      if M[y,x] > maxval:
-        maxval = M[y,x]
-        maxidx = [y,x]
+  for j in range(h):
+    for i in range(w):
+      if M[j,i] > maxval:
+        maxval = M[j,i]
+        maxidx = [j,i]
   return (maxval, maxidx)
 
 class Decoder:
@@ -89,14 +89,14 @@ class Decoder:
     print("setting parameters...", end="")
 
     # discretisation parameters
-    self.n_spatial_bins = 32
-    self.spatial_bin_size = np.amax(self.pos[:,1:3],0)/(self.n_spatial_bins-1)
+    self.num_spatial_bins = 32
+    self.spatial_bin_size = np.amax(self.pos[:,1:3],0)/(self.num_spatial_bins-1)
 
     # determine tranversable areas of map
-    occ = self.posmat(self.pos,self.maze_epoch[1]-self.maze_epoch[0]) # count no. ticks in each pos-bin & norm. by total dur.
-    posmask = occ > 0                                                 # any pos-bin that was accessed marked accessible
+    occ = self.occ_mat(self.pos,self.maze_epoch[1]-self.maze_epoch[0]) # count no. ticks in each pos-bin & norm. by total dur.
+    posmask = occ > 0                                                 # ah pos-bin that was accessed marked accessible
     self.accmask = np.array(
-      [[posmask[y,x] or sum_neighbours(posmask,x,y)>2 for x in range(posmask.shape[0])] for y in range(posmask.shape[1])]
+      [[posmask[j,i] or sum_neighbours(posmask,i,j)>2 for i in range(posmask.shape[0])] for j in range(posmask.shape[1])]
     )
 
     print("COMPLETE.")
@@ -105,17 +105,18 @@ class Decoder:
   def calc_f_2d(self,interval):
     # calculate (approximate) occupancy (total time spent in location bins)
     print("calculating 2D occupancy map...", end="")
-    occ = self.posmat(self.get_pos(interval),interval[1]-interval[0]) # count no. ticks in each pos-bin & norm. by total dur.
-    posmask = occ > 0                                                 # any pos-bin that was accessed marked accessible
+    occ = self.occ_mat(self.get_pos(interval),interval[1]-interval[0]) # count no. ticks in each pos-bin & norm. by total dur.
+    posmask = occ > 0                                                  # ah pos-bin that was accessed marked accessible
     print("COMPLETE.")
+
     # approximate position of neuron firing
-    f = np.empty((len(self.hc),self.n_spatial_bins,self.n_spatial_bins))
+    f = np.empty((len(self.hc),self.num_spatial_bins,self.num_spatial_bins))
     for i in range(0,len(self.hc)):
       print("processing neurons: %d / %d\r" % (i, len(self.hc)), end="")
       tspk = self.get_spike_times(i,interval)      # get times neuron spiked during interval
-      f[i] = self.posmat(self.pos_at_time(tspk))   # count number of spikes occuring at each pos-bin
+      f[i] = self.occ_mat(self.pos_at_time(tspk))  # count number of spikes occuring at each pos-bin
       f[i][posmask] = f[i][posmask] / occ[posmask] # fr = spike count / time spent in each pos-bin
-      oldmax = np.max(np.max(f[i]))
+      #oldmax = np.max(np.max(f[i]))
       f[i] = gaussian_filter(f[i],1.0)*self.accmask  # blur a little
       #newmax = np.max(np.max(f[i]))
       #if newmax != 0:
@@ -130,99 +131,87 @@ class Decoder:
   def get_pos(self,interval):
     return self.pos[np.logical_and(interval[0]<=self.pos[:,0], self.pos[:,0]<=interval[1]),:]
 
-  def posmat(self,pos,a=None):
-    bin_pos = self.pos2pbi(pos[:,1:3])
-    occ = np.zeros((self.n_spatial_bins,self.n_spatial_bins))
-    for y in range(0,self.n_spatial_bins):
-      for x in range(0,self.n_spatial_bins):
-        occ[y,x] = np.sum(np.all(bin_pos == [x,y],axis=1))
+  def occ_mat(self,pos,a=None):
+    bin_pos = self.pos_to_x(pos[:,1:3])
+    occ = np.zeros((self.num_spatial_bins,self.num_spatial_bins))
+    for j in range(0,self.num_spatial_bins):
+      for i in range(0,self.num_spatial_bins):
+        occ[j,i] = np.sum(np.all(bin_pos == [j,i],axis=1))
     if a != None:
       occ = (a/np.sum(np.sum(occ)))*occ
     occ[np.isnan(occ)] = 0
     return occ
 
-  def pos2pbi(self,pos):
-    pbir = np.round(pos/self.spatial_bin_size)
-    return np.append([pbir[:,1]],[pbir[:,0]],axis=0).T.astype(int)
-
   def pos_at_time(self,times):
     return np.append(np.array([times]).T, self.pos[find_closest(self.pos[:,0], times), 1:3], axis=1)
 
+  def pos_to_x(self,pos):
+    x_r = np.round(pos/self.spatial_bin_size)
+    return np.append([x_r[:,1]],[x_r[:,0]],axis=0).T.astype(int)
+
   def prob_n_given_x(self,n,x,f,tau):
-    xidx = tuple(x) # TODO: check these coordinates are right way round! Rem. arrays accessed row-column (unlike cart.)
+    xidx = tuple(x)
     ngtz = n[n > 0]
     return np.prod([((tau*f[i][xidx])**n[i]/factorial(n[i]))*np.exp(-tau*f[i][xidx]) for i in range(len(ngtz))])
 
   def prob_x_given_n(self,n,f,tau):
     prob = np.array(
-      [[self.prob_n_given_x(n,(y,x),f,tau) for x in range(self.n_spatial_bins)] for y in range(self.n_spatial_bins)]
+      [[self.prob_n_given_x(n,(j,i),f,tau) for i in range(self.num_spatial_bins)] for j in range(self.num_spatial_bins)]
     )
     C = 1/np.sum(np.sum(prob)) if np.sum(np.sum(prob)) > 0 else 0
     return C*prob
 
   def ex_n_given_x(self,x,f,tau):
-    xidx = tuple(x) # TODO: check these coordinates are right way round! Rem. arrays accessed row-column (unlike cart.)
+    xidx = tuple(x)
     return np.array([f[i][xidx]*tau for i in range(len(self.hc))])
 
-  def approx_n_and_pos(self,interval,time_bin_size):
-    n_time_bins = int(np.ceil((interval[1]-interval[0])/time_bin_size))
+  def approx_n_and_x(self,interval,time_bin_size):
+    num_time_bins = int(np.ceil((interval[1]-interval[0])/time_bin_size))
     pos = self.get_pos(interval)
     tidx = np.floor((pos[:,0]-np.min(pos[:,0]))/time_bin_size)
-    pbi = self.pos2pbi(np.array([np.mean(pos[tidx==i,1:3],axis=0) for i in range(n_time_bins)]))
-    N = np.empty((len(self.hc),n_time_bins))
+    x = self.pos_to_x(np.array([np.mean(pos[tidx==i,1:3],axis=0) for i in range(num_time_bins)]))
+    n = np.empty((len(self.hc),num_time_bins))
     for i in range(0,len(self.hc)):
       print("processing neurons: %d / %d\r" % (i, len(self.hc)), end="")
       tspk = self.get_spike_times(i,interval)
       if tspk.size: # check is not empty
         tidx = np.floor((tspk-np.min(tspk))/time_bin_size)
-        N[i] = np.array([np.sum(tidx==i) for i in range(n_time_bins)])
+        n[i] = np.array([np.sum(tidx==i) for i in range(num_time_bins)])
       else:
-        N[i] = np.zeros(n_time_bins)
+        n[i] = np.zeros(num_time_bins)
     print("processing neurons...COMPLETE.")
     print("all done.")
-    return (N, pbi)
+    return (n, x)
 
-  def random_time_pos(self,interval):
+  def random_t_x(self,interval):
     rand = np.random.uniform(interval[0],interval[1])
     pos = self.pos_at_time([rand])
-    time = pos[0,0]
-    pbi = np.floor(pos[:,1:3]/self.spatial_bin_size).flatten().astype(int)
-    return (time,pbi)
+    t = pos[0,0]
+    x = np.floor(pos[:,1:3]/self.spatial_bin_size).flatten().astype(int)
+    return (t,x)
 
 decoder = Decoder()
-
-if 0:
-  rec = (decoder.maze_epoch[0],decoder.maze_epoch[0]+1)
-  truepos = decoder.get_pos(rec)
-  trueposmat = decoder.posmat(truepos)
-  plt.imshow(trueposmat,origin='lower')
-  plt.show()
+f = decoder.calc_f_2d(decoder.maze_epoch)
+#for i in range(len(f)):
+#  maxval = np.max(np.max(f[i]))
+#  if maxval > 0:
+#    plt.title("Neuron %d" % i)
+#    plt.imshow(f[i],origin='lower')
+#    plt.show(block=False) ; plt.pause(0.1)
+#plt.close()
 
 if 1:
-  [time, pos] = decoder.random_time_pos(decoder.maze_epoch)
-  interval = decoder.maze_epoch
-  print(time)
-  print(pos)
+  [t,x] = decoder.random_t_x(decoder.maze_epoch)
+  print('decoding for time',t,'at x',x)
+  n_ex = decoder.ex_n_given_x(x,f,0.25)
 
-  f = decoder.calc_f_2d(interval)
-
-  for i in range(len(f)):
-    maxval = np.max(np.max(f[i]))
-    if maxval > 0:
-      #print('neuron',i,'maxval =',maxval)
-      plt.title("Neuron %d" % i)
-      plt.imshow(f[i],origin='lower')
-      plt.show(block=False) ; plt.pause(0.1)
-  plt.close()
-
-  ex_n = decoder.ex_n_given_x((pos[1],pos[0]),f,0.25)
-  (n,_) = decoder.approx_n_and_pos((time-0.125,time+0.125),0.25)
+  (n,_) = decoder.approx_n_and_x((t-0.125,t+0.125),0.25)
   probmat = decoder.prob_x_given_n(n,f,0.25)
-  maxval, maxidx = matmax(probmat)
-  print(maxval, maxidx)
+  print(matmax(probmat))
+
   plt.imshow(probmat)
   plt.show()
   l1, = plt.plot(n[:,0])
-  l2, = plt.plot(ex_n)
+  l2, = plt.plot(n_ex)
   plt.legend([l1,l2],["actual","expected"])
   plt.show()
