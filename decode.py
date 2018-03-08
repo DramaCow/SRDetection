@@ -21,6 +21,12 @@ def merge_intervals(intervals):
       endj   = endc
   return np.append(result, np.array([[startj, endj]]), axis=0)
 
+def plot_intervals(intervals):
+  fint = intervals.flatten()
+  line = np.insert(fint, range(2,len(fint),2), np.nan)
+  plt.plot(line, np.zeros(len(line)))
+  plt.show()
+
 def find_closest(A, targets):
   inds = np.clip(A.searchsorted(targets), 1, len(A)-1)
   left = A[inds-1]
@@ -44,22 +50,19 @@ def matmax(M):
     for i in range(w):
       if M[j,i] > maxval:
         maxval = M[j,i]
-        maxidx = [j,i]
+        maxidx = np.array([j,i])
   return (maxval, maxidx)
 
 class Decoder:
   def __init__(self):
     # === LOAD ===
-    print("loading data...", end="")
 
     # load necessary mat files
     spk = sio.loadmat('Tmaze_spiking_data.mat')
     loc = sio.loadmat('Tmaze_location_data.mat')
     rst = sio.loadmat('rippspin-times-FGHIJ.mat')
     
-    print("COMPLETE.")
     # === PREPROCESS ===
-    print("preprocessing data...", end="")
 
     # identifiers
     experiment = 4 # max is 4
@@ -84,9 +87,7 @@ class Decoder:
     # get ripple periods (+/- 100ms around detected SPW-R peak times)
     self.rip = merge_intervals(np.append(rst[rippl_id]-0.1, rst[rippl_id]+0.1, axis=1))
 
-    print("COMPLETE.")
     # === PARAMETERS ===
-    print("setting parameters...", end="")
 
     # discretisation parameters
     self.num_spatial_bins = 32
@@ -99,9 +100,6 @@ class Decoder:
       [[posmask[j,i] or sum_neighbours(posmask,i,j)>2 for i in range(posmask.shape[0])] for j in range(posmask.shape[1])]
     )
 
-    print("COMPLETE.")
-    print("all done.")
-    
   def calc_f_2d(self,interval):
     # calculate (approximate) occupancy (total time spent in location bins)
     print("calculating 2D occupancy map...", end="")
@@ -172,15 +170,15 @@ class Decoder:
     x = self.pos_to_x(np.array([np.mean(pos[tidx==i,1:3],axis=0) for i in range(num_time_bins)]))
     n = np.empty((len(self.hc),num_time_bins))
     for i in range(0,len(self.hc)):
-      print("processing neurons: %d / %d\r" % (i, len(self.hc)), end="")
+      #print("processing neurons: %d / %d\r" % (i, len(self.hc)), end="")
       tspk = self.get_spike_times(i,interval)
       if tspk.size: # check is not empty
         tidx = np.floor((tspk-np.min(tspk))/time_bin_size)
         n[i] = np.array([np.sum(tidx==i) for i in range(num_time_bins)])
       else:
         n[i] = np.zeros(num_time_bins)
-    print("processing neurons...COMPLETE.")
-    print("all done.")
+    #print("processing neurons...COMPLETE.")
+    #print("all done.")
     return (n, x)
 
   def random_t_x(self,interval):
@@ -191,7 +189,9 @@ class Decoder:
     return (t,x)
 
 decoder = Decoder()
+#plot_intervals(decoder.rip)
 f = decoder.calc_f_2d(decoder.maze_epoch)
+
 #for i in range(len(f)):
 #  maxval = np.max(np.max(f[i]))
 #  if maxval > 0:
@@ -200,22 +200,32 @@ f = decoder.calc_f_2d(decoder.maze_epoch)
 #    plt.show(block=False) ; plt.pause(0.1)
 #plt.close()
 
+fig = plt.figure()
+window = 0.5
 for _ in range(100):
+  # generate test data
   [t,x] = decoder.random_t_x(decoder.maze_epoch)
-  print(x)
-  print('decoding for time',t,'at x',x)
-  n_ex = decoder.ex_n_given_x(x,f,0.25)
+  (n,_) = decoder.approx_n_and_x((t-window/2,t+window/2),window)
+  n_ex = decoder.ex_n_given_x(x,f,window)
+  print('t = %.2f, x =' % t, x, end=', ')
 
-  (n,_) = decoder.approx_n_and_x((t-0.125,t+0.125),0.25)
-  probmat = decoder.prob_X_given_n(n,f,0.25)
-  [maxval, maxidx] = matmax(probmat)
-  print(maxval, maxidx)
-
+  # calculate argmax probability
+  probmat = decoder.prob_X_given_n(n,f,window)
+  [argmax_p, x_] = matmax(probmat)
+  print('prob = %.4f, x_ =' % argmax_p, x_)
+  
+  # plots
+  plt.subplot(121)
   plt.imshow(probmat, cmap='gray', origin='lower')
-  plt.scatter(x[1], x[0], color='r')
-  plt.scatter(maxidx[1], maxidx[0], color='b')
-  plt.show(block=False) ; plt.pause(2) ; plt.close()
-  l1, = plt.plot(n[:,0], 'r')
+  if np.all(x == x_):
+    plt.scatter(x[1],x[0],color='g')
+  else:
+    plt.scatter(x[1], x[0], color='r')
+    plt.scatter(x_[1], x_[0], color='b')
+  plt.subplot(122)
+  l1, = plt.plot(n, 'r')
   l2, = plt.plot(n_ex, 'b')
+  plt.xlabel('neuron')
+  plt.title('spike count (within %.2fs window)' % window)
   plt.legend([l1,l2],["actual","expected"])
-  plt.show(block=False) ; plt.pause(2) ; plt.close()
+  plt.show(block=False) ; plt.pause(2) ; fig.clf()
