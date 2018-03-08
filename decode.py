@@ -154,7 +154,7 @@ class Decoder:
     ngtz = n[n > 0]
     return np.prod([((tau*f[i][xidx])**n[i]/factorial(n[i]))*np.exp(-tau*f[i][xidx]) for i in range(len(ngtz))])
 
-  def prob_x_given_n(self,n,f,tau):
+  def prob_X_given_n(self,n,f,tau):
     prob = np.array(
       [[self.prob_n_given_x(n,(j,i),f,tau) for i in range(self.num_spatial_bins)] for j in range(self.num_spatial_bins)]
     )
@@ -206,12 +206,15 @@ if 1:
   n_ex = decoder.ex_n_given_x(x,f,0.25)
 
   (n,_) = decoder.approx_n_and_x((t-0.125,t+0.125),0.25)
-  probmat = decoder.prob_x_given_n(n,f,0.25)
-  print(matmax(probmat))
+  probmat = decoder.prob_X_given_n(n,f,0.25)
+  [maxval, maxidx] = matmax(probmat)
+  print(maxval, maxidx)
 
-  plt.imshow(probmat)
+  plt.imshow(probmat, cmap='gray', origin='lower')
+  plt.scatter(x[1], x[0], color='r')
+  plt.scatter(maxidx[1], maxidx[0], color='b')
   plt.show()
-  l1, = plt.plot(n[:,0])
-  l2, = plt.plot(n_ex)
+  l1, = plt.plot(n[:,0], 'r')
+  l2, = plt.plot(n_ex, 'b')
   plt.legend([l1,l2],["actual","expected"])
   plt.show()
