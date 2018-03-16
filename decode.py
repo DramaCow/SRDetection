@@ -1,10 +1,9 @@
-import sys
 import numpy as np
-import math
 import matplotlib.pyplot as plt
 import scipy.io as sio
 from scipy.ndimage.filters import gaussian_filter
-from math import ceil, floor, factorial
+from math import factorial
+from astar import astar, create_grid, Node
 
 def merge_intervals(intervals):
   result = np.empty((0,2))
@@ -90,14 +89,15 @@ class Decoder:
     # === PARAMETERS ===
 
     # discretisation parameters
-    self.num_spatial_bins = 32
-    self.spatial_bin_size = np.amax(self.pos[:,1:3],0)/(self.num_spatial_bins-1)
+    self.map_dimensions = np.array([32,32])
+    self.spatial_bin_size = np.amax(self.pos[:,1:3],0)/(self.map_dimensions-1)
+    self.spatial_bin_size = np.array([self.spatial_bin_size[1], self.spatial_bin_size[0]])
 
     # calculate prior and determine tranversable areas of map
     self.p_x = self.occ_mat(self.pos,1) # prior probability (occupancy normalised to probability)
     posmask = self.p_x > 0              # ah pos-bin that was accessed marked accessible
     self.accmask = np.array(
-      [[posmask[j,i] or sum_neighbours(posmask,i,j)>2 for i in range(posmask.shape[0])] for j in range(posmask.shape[1])]
+      [[posmask[j,i] or sum_neighbours(posmask,i,j)>2 for i in range(posmask.shape[1])] for j in range(posmask.shape[0])]
     )
 
   def calc_f_2d(self,interval):
@@ -108,8 +108,8 @@ class Decoder:
     print("COMPLETE.")
 
     # approximate position of neuron firing
-    f = np.empty((len(self.hc),self.num_spatial_bins,self.num_spatial_bins))
-    for i in range(0,len(self.hc)):
+    f = np.empty((len(self.hc),self.map_dimensions[0],self.map_dimensions[1]))
+    for i in range(len(self.hc)):
       print("processing neurons: %d / %d\r" % (i, len(self.hc)), end="")
       tspk = self.get_spike_times(i,interval)      # get times neuron spiked during interval
       f[i] = self.occ_mat(self.pos_at_time(tspk))  # count number of spikes occuring at each pos-bin
@@ -131,9 +131,9 @@ class Decoder:
 
   def occ_mat(self,pos,a=None):
     bin_pos = self.pos_to_x(pos[:,1:3])
-    occ = np.zeros((self.num_spatial_bins,self.num_spatial_bins))
-    for j in range(0,self.num_spatial_bins):
-      for i in range(0,self.num_spatial_bins):
+    occ = np.zeros(self.map_dimensions)
+    for j in range(0,self.map_dimensions[0]):
+      for i in range(0,self.map_dimensions[1]):
         occ[j,i] = np.sum(np.all(bin_pos == [j,i],axis=1))
     if a != None:
       occ = (a/np.sum(np.sum(occ)))*occ
@@ -144,18 +144,23 @@ class Decoder:
     return np.append(np.array([times]).T, self.pos[find_closest(self.pos[:,0], times), 1:3], axis=1)
 
   def pos_to_x(self,pos):
-    x_r = np.round(pos/self.spatial_bin_size)
-    return np.append([x_r[:,1]],[x_r[:,0]],axis=0).T.astype(int)
+    pos_r = np.append([pos[:,1]],[pos[:,0]],axis=0).T
+    return np.round(pos_r/self.spatial_bin_size).astype(int)
 
   def prob_n_given_x(self,n,x,f,tau):
     xidx = tuple(x)
     ngtz = n[n > 0]
     return np.prod([((tau*f[i][xidx])**n[i]/factorial(n[i]))*np.exp(-tau*f[i][xidx]) for i in range(len(ngtz))])
 
-  def prob_X_given_n(self,n,f,tau):
-    prob = self.p_x*np.array(
-      [[self.prob_n_given_x(n,(j,i),f,tau) for i in range(self.num_spatial_bins)] for j in range(self.num_spatial_bins)]
+  # likelihood
+  def prob_n_given_X(self,n,f,tau):
+    return np.array(
+      [[self.prob_n_given_x(n,(j,i),f,tau) for i in range(self.map_dimensions[1])] for j in range(self.map_dimensions[0])]
     )
+
+  # posterior
+  def prob_X_given_n(self,n,f,tau):
+    prob = self.p_x*self.prob_n_given_X(n,f,tau)
     C = 1/np.sum(np.sum(prob)) if np.sum(np.sum(prob)) > 0 else 0
     return C*prob
 
@@ -166,7 +171,10 @@ class Decoder:
   def approx_n_and_x(self,interval,time_bin_size):
     num_time_bins = int(np.ceil((interval[1]-interval[0])/time_bin_size))
     pos = self.get_pos(interval)
-    tidx = np.floor((pos[:,0]-np.min(pos[:,0]))/time_bin_size)
+    if len(pos) == 0:
+      print(interval)
+      print('EMPTY?!')
+    tidx = np.floor((pos[:,0]-np.min(pos[:,0]))/time_bin_size) # TODO: problem with min
     x = self.pos_to_x(np.array([np.mean(pos[tidx==i,1:3],axis=0) for i in range(num_time_bins)]))
     n = np.empty((len(self.hc),num_time_bins))
     for i in range(0,len(self.hc)):
@@ -212,20 +220,31 @@ for _ in range(100):
   # calculate argmax probability
   probmat = decoder.prob_X_given_n(n,f,window)
   [argmax_p, x_] = matmax(probmat)
-  print('prob = %.4f, x_ =' % argmax_p, x_)
+  print('prob = %.4f, x_ =' % argmax_p, x_, end=', ')
+
+  #likelihood = decoder.prob_n_given_X(n,f,window)
+  #plt.imshow(likelihood,origin='lower')
+  #plt.show()
   
   # plots
   plt.subplot(121)
   plt.imshow(probmat, cmap='gray', origin='lower')
+  path_length = 0
   if np.all(x == x_):
-    plt.scatter(x[1],x[0],color='g')
+    plt.scatter(x[1],x[0],color='lime')
   else:
     plt.scatter(x[1], x[0], color='r')
     plt.scatter(x_[1], x_[0], color='b')
+    path = astar(tuple(x),tuple(x_),create_grid(decoder.accmask))
+    path_points = np.array([list(p.point) for p in path])
+    path_length = path[-1].G
+    plt.plot(path_points[:,1],path_points[:,0],'y-')
+  print(path_length)
   plt.subplot(122)
   l1, = plt.plot(n, 'r')
   l2, = plt.plot(n_ex, 'b')
   plt.xlabel('neuron')
   plt.title('spike count (within %.2fs window)' % window)
   plt.legend([l1,l2],["actual","expected"])
-  plt.show(block=False) ; plt.pause(2) ; fig.clf()
+  plt.show(block=False) ; plt.pause(1) ; fig.clf()
+  #plt.show()
