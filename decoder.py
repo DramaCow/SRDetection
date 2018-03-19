@@ -90,9 +90,9 @@ class Decoder:
     f = np.empty((len(self.hc),self.map_dimensions[0],self.map_dimensions[1]))
     for i in range(len(self.hc)):
       print("processing neurons: %d / %d\r" % (i, len(self.hc)), end="")
-      tspk = self.get_spike_times(i,interval)      # get times neuron spiked during interval
-      f[i] = self.occ_mat(self.pos_at_time(tspk))  # count number of spikes occuring at each pos-bin
-      f[i][posmask] = f[i][posmask] / occ[posmask] # fr = spike count / time spent in each pos-bin
+      tspk = self.get_spike_times(i,interval)            # get times neuron spiked during interval
+      f[i] = self.occ_mat(self.approx_pos_at_time(tspk)) # count number of spikes occuring at each pos-bin
+      f[i][posmask] = f[i][posmask] / occ[posmask]       # fr = spike count / time spent in each pos-bin
       #oldmax = np.max(np.max(f[i]))
       f[i] = gaussian_filter(f[i],1.0)*self.accmask  # blur a little
       #newmax = np.max(np.max(f[i]))
@@ -119,8 +119,11 @@ class Decoder:
     occ[np.isnan(occ)] = 0
     return occ
 
-  def pos_at_time(self,times):
+  def approx_pos_at_time(self,times):
     return np.append(np.array([times]).T, self.pos[find_closest(self.pos[:,0], times), 1:3], axis=1)
+
+  def nearest_pos_at_time(self,times):
+    return self.pos[find_closest(self.pos[:,0], times),:]
 
   def pos_to_x(self,pos):
     pos_r = np.append([pos[:,1]],[pos[:,0]],axis=0).T
@@ -150,10 +153,7 @@ class Decoder:
   def approx_n_and_x(self,interval,time_bin_size):
     num_time_bins = int(np.ceil((interval[1]-interval[0])/time_bin_size))
     pos = self.get_pos(interval)
-    if len(pos) == 0:
-      print(interval)
-      print('EMPTY?!')
-    tidx = np.floor((pos[:,0]-np.min(pos[:,0]))/time_bin_size) # TODO: problem with min
+    tidx = np.floor((pos[:,0]-np.min(pos[:,0]))/time_bin_size)
     x = self.pos_to_x(np.array([np.mean(pos[tidx==i,1:3],axis=0) for i in range(num_time_bins)]))
     n = np.empty((len(self.hc),num_time_bins))
     for i in range(0,len(self.hc)):
@@ -170,7 +170,7 @@ class Decoder:
 
   def random_t_x(self,interval):
     rand = np.random.uniform(interval[0],interval[1])
-    pos = self.pos_at_time([rand])
+    pos = self.nearest_pos_at_time([rand])
     t = pos[0,0]
     x = self.pos_to_x(pos[:,1:3]).flatten()
     return (t,x)

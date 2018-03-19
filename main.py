@@ -3,8 +3,8 @@ import matplotlib.pyplot as plt
 import decoder as bd
 from astar import astar, create_grid, Node
 
-# data source
-from mj import pos, hc, maze_epoch
+# === DATA SOURCE ===
+from gb import pos, hc, maze_epoch
 
 # === DECODER ===
 decoder = bd.Decoder(pos,hc)
