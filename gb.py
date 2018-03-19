@@ -8,9 +8,9 @@ dt = 1e-3
 
 with h5py.File('data_gb/Achilles_10252013_sessInfo.mat', 'r') as f:
   # epoch info
-  PREEpoch = f['sessInfo']['Epochs']['PREEpoch'][:].flatten()
-  MazeEpoch = f['sessInfo']['Epochs']['MazeEpoch'][:].flatten()
-  POSTEpoch = f['sessInfo']['Epochs']['POSTEpoch'][:].flatten()
+  pre_epoch  = f['sessInfo']['Epochs']['PREEpoch'][:].flatten()
+  maze_epoch = f['sessInfo']['Epochs']['MazeEpoch'][:].flatten()
+  post_epoch = f['sessInfo']['Epochs']['POSTEpoch'][:].flatten()
   sessDuration = float(f['sessInfo']['Epochs']['sessDuration'][0])
 
   # position info
@@ -43,10 +43,3 @@ with h5py.File('data_gb/Achilles_10252013_sessInfo.mat', 'r') as f:
 
   pos = np.array([TimeStamps,TwoDLocation[0],TwoDLocation[1]]).T
   hc = np.array([SpikeTimes[SpikeIDs==i] for i in np.concatenate([IntIDs, PyrIDs])])
-
-  #print(MazeEpoch)
-  #print(min(pos[:,0]), max(pos[:,0]))
-  #for i in range(len(hc)):
-  #  print(i, min(hc[i]), max(hc[i]))
-
-  decoder = bd.Decoder(pos,hc)
