@@ -6,7 +6,7 @@ import decoder as bd
 duration = 300.0
 dt = 1e-3
 
-with h5py.File('Achilles_10252013_sessInfo.mat', 'r') as f:
+with h5py.File('data_gb/Achilles_10252013_sessInfo.mat', 'r') as f:
   # epoch info
   PREEpoch = f['sessInfo']['Epochs']['PREEpoch'][:].flatten()
   MazeEpoch = f['sessInfo']['Epochs']['MazeEpoch'][:].flatten()

@@ -7,13 +7,13 @@ from astar import astar, create_grid, Node
 experiment = 4 # max is 4
 
 # === POSITION ===
-loc = sio.loadmat('Tmaze_location_data.mat')
+loc = sio.loadmat('data_mj/Tmaze_location_data.mat')
 posit_id = chr(ord('F')+experiment)+'positiondata'
 pos = loc[posit_id][~np.all(loc[posit_id][:,1:3]==0,1),:] # ignores 0,0 positions (erroneous)
 pos[:,0] = pos[:,0]/1e6
 
 # === SPIKING ===
-spk = sio.loadmat('Tmaze_spiking_data.mat')
+spk = sio.loadmat('data_mj/Tmaze_spiking_data.mat')
 cells_id = chr(ord('F')+experiment)+'cells'
 hc = [hc['tspk'].flatten() for hc in spk[cells_id][spk[cells_id]['area'] == 'hc']] # only look at hippocampal cells
 
@@ -25,7 +25,7 @@ maze_epoch = [max(maze_epoch[0],min(pos[:,0])), min(maze_epoch[1],max(pos[:,0]))
 post_epoch = np.concatenate(spk['epochs'][epoch_id,5:7]).ravel()
 
 # === RIPPLES ===
-rst = sio.loadmat('rippspin-times-FGHIJ.mat')
+rst = sio.loadmat('data_mj/rippspin-times-FGHIJ.mat')
 rippl_id = chr(ord('F')+experiment)+'rip'
 rip = bd.merge_intervals(np.append(rst[rippl_id]-0.1, rst[rippl_id]+0.1, axis=1)) # get ripple periods (+/- 100ms around detected SPW-R peak times)
 #bd.plot_intervals(rip)
