@@ -42,4 +42,5 @@ with h5py.File('data_gb/Achilles_10252013_sessInfo.mat', 'r') as f:
   N = i + 1
 
   pos = np.array([TimeStamps,TwoDLocation[0],TwoDLocation[1]]).T
-  hc = np.array([SpikeTimes[SpikeIDs==i] for i in np.concatenate([IntIDs, PyrIDs])])
+  hc = np.array([SpikeTimes[SpikeIDs==i] for i in PyrIDs])
+  #hc = np.array([SpikeTimes[SpikeIDs==i] for i in np.concatenate([IntIDs, PyrIDs])])

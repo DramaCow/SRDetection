@@ -68,9 +68,9 @@ class Decoder:
     self.hc = hc
 
     # discretisation parameters
-    self.map_dimensions = np.array([32,32])
-    self.spatial_bin_size = np.amax(self.pos[:,1:3],0)/(self.map_dimensions-1)
-    self.spatial_bin_size = np.array([self.spatial_bin_size[1], self.spatial_bin_size[0]])
+    self.map_dimensions = np.array([17,31])
+    map_size = np.array([max(self.pos[:,2]),max(self.pos[:,1])])
+    self.spatial_bin_size = map_size/(self.map_dimensions-1)
 
     # calculate prior and determine tranversable areas of map
     self.p_x = self.occ_mat(self.pos,1) # prior probability (occupancy normalised to probability)
@@ -129,6 +129,7 @@ class Decoder:
     pos_r = np.append([pos[:,1]],[pos[:,0]],axis=0).T
     return np.round(pos_r/self.spatial_bin_size).astype(int)
 
+  # per-position likelihood
   def prob_n_given_x(self,n,x,f,tau):
     xidx = tuple(x)
     ngtz = n[n > 0]

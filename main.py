@@ -5,10 +5,12 @@ from astar import astar, create_grid, Node
 
 # === DATA SOURCE ===
 from gb import pos, hc, maze_epoch
+maze_epoch[0] += 200
 
 # === DECODER ===
 decoder = bd.Decoder(pos,hc)
 f = decoder.calc_f_2d(maze_epoch)
+#bd.plot_fr_field(f,0.1)
 
 # === TEST ===
 fig = plt.figure()
@@ -38,7 +40,7 @@ for p in range(len(path_lengths)):
     path_points = np.array([list(p.point) for p in path])
     path_lengths[p] = path[-1].G
     plt.plot(path_points[:,1],path_points[:,0],'y-')
-  print('path length = %.2f' % path_lengths[p])
+  print('error = %.2f' % path_lengths[p])
   plt.subplot(122)
   l1, = plt.plot(n, 'r')
   l2, = plt.plot(n_ex, 'b')
@@ -47,6 +49,7 @@ for p in range(len(path_lengths)):
   plt.legend([l1,l2],["actual","expected"])
   plt.show(block=False) ; plt.pause(1) ; fig.clf()
   #plt.show()
+
 print('average path length = %.2f' % np.mean(path_lengths))
 print('number of close results = %d/%d' % (np.sum(path_lengths<10),len(path_lengths)))
 print('min path length = %.2f' % np.min(path_lengths))
