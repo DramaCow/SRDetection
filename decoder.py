@@ -63,14 +63,18 @@ def matmax(M):
   return (maxval, maxidx)
 
 class Decoder:
-  def __init__(self,pos,hc):
+  def __init__(self,pos,hc,spatial_bin_size):
     self.pos = pos
     self.hc = hc
 
     # discretisation parameters
-    self.map_dimensions = np.array([17,31])
+    #self.map_dimensions = np.array([17,31])
+    #map_size = np.array([max(self.pos[:,2]),max(self.pos[:,1])])
+    #self.spatial_bin_size = map_size/(self.map_dimensions-1)
+    self.spatial_bin_size = spatial_bin_size
     map_size = np.array([max(self.pos[:,2]),max(self.pos[:,1])])
-    self.spatial_bin_size = map_size/(self.map_dimensions-1)
+    self.map_dimensions = np.ceil((map_size/self.spatial_bin_size)+1).astype(int)
+    print(self.map_dimensions)
 
     # calculate prior and determine tranversable areas of map
     self.p_x = self.occ_mat(self.pos,1) # prior probability (occupancy normalised to probability)
