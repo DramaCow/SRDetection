@@ -4,10 +4,10 @@ import decoder as bd
 from astar import astar, create_grid, Node
 
 # === DATA SOURCE ===
-from mj import pos, hc, maze_epoch
+from mj import pos, spk, maze_epoch
 
 # === DECODER ===
-decoder = bd.Decoder(pos,hc,np.array([8,8]))
+decoder = bd.Decoder(pos,spk,np.array([8,8]))
 f = decoder.calc_f_2d(maze_epoch)
 #bd.plot_fr_field(f,0.1)
 

@@ -63,9 +63,9 @@ def matmax(M):
   return (maxval, maxidx)
 
 class Decoder:
-  def __init__(self,pos,hc,spatial_bin_size):
+  def __init__(self,pos,spk,spatial_bin_size):
     self.pos = pos
-    self.hc = hc
+    self.spk = spk
 
     # discretisation parameters
     #self.map_dimensions = np.array([17,31])
@@ -91,9 +91,9 @@ class Decoder:
     print("COMPLETE.")
 
     # approximate position of neuron firing
-    f = np.empty((len(self.hc),self.map_dimensions[0],self.map_dimensions[1]))
-    for i in range(len(self.hc)):
-      print("processing neurons: %d / %d\r" % (i, len(self.hc)), end="")
+    f = np.empty((len(self.spk),self.map_dimensions[0],self.map_dimensions[1]))
+    for i in range(len(self.spk)):
+      print("processing neurons: %d / %d\r" % (i, len(self.spk)), end="")
       tspk = self.get_spike_times(i,interval)            # get times neuron spiked during interval
       f[i] = self.occ_mat(self.approx_pos_at_time(tspk)) # count number of spikes occuring at each pos-bin
       f[i][posmask] = f[i][posmask] / occ[posmask]       # fr = spike count / time spent in each pos-bin
@@ -107,7 +107,7 @@ class Decoder:
     return f
     
   def get_spike_times(self,i,interval):
-    return self.hc[i][np.logical_and(interval[0]<=self.hc[i], self.hc[i]<=interval[1])]
+    return self.spk[i][np.logical_and(interval[0]<=self.spk[i], self.spk[i]<=interval[1])]
 
   def get_pos(self,interval):
     return self.pos[np.logical_and(interval[0]<=self.pos[:,0], self.pos[:,0]<=interval[1]),:]
@@ -153,16 +153,16 @@ class Decoder:
 
   def ex_n_given_x(self,x,f,tau):
     xidx = tuple(x)
-    return np.array([f[i][xidx]*tau for i in range(len(self.hc))])
+    return np.array([f[i][xidx]*tau for i in range(len(self.spk))])
 
   def approx_n_and_x(self,interval,time_bin_size):
     num_time_bins = int(np.ceil((interval[1]-interval[0])/time_bin_size))
     pos = self.get_pos(interval)
     tidx = np.floor((pos[:,0]-np.min(pos[:,0]))/time_bin_size)
     x = self.pos_to_x(np.array([np.mean(pos[tidx==i,1:3],axis=0) for i in range(num_time_bins)]))
-    n = np.empty((len(self.hc),num_time_bins))
-    for i in range(0,len(self.hc)):
-      #print("processing neurons: %d / %d\r" % (i, len(self.hc)), end="")
+    n = np.empty((len(self.spk),num_time_bins))
+    for i in range(0,len(self.spk)):
+      #print("processing neurons: %d / %d\r" % (i, len(self.spk)), end="")
       tspk = self.get_spike_times(i,interval)
       if tspk.size: # check is not empty
         tidx = np.floor((tspk-np.min(tspk))/time_bin_size)
