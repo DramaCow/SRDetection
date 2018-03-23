@@ -1,7 +1,6 @@
 import numpy as np
 from math import floor
 import h5py
-import decoder as bd
 
 duration = 300.0
 dt = 1e-3
@@ -44,3 +43,4 @@ with h5py.File('data_gb/Achilles_10252013_sessInfo.mat', 'r') as f:
   pos = np.array([TimeStamps,TwoDLocation[0],TwoDLocation[1]]).T
   spk = np.array([SpikeTimes[SpikeIDs==i] for i in PyrIDs])
   #spk = np.array([SpikeTimes[SpikeIDs==i] for i in np.concatenate([IntIDs, PyrIDs])])
+  spatial_bin_size = np.array([0.04,0.04])
