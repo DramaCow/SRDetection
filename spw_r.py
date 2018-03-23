@@ -58,12 +58,12 @@ def spw_r_detect(eegs,samprates):
 
   #samps_per_bin = 15*1e-3*samprates
   larges = np.array([
-    keep_intervals_ge_length(vec_to_intervals(vec),23)
-      for vec in np.array([env > mean for (env,mean) in zip(envs,means)]).astype(int)
+    keep_intervals_ge_length(vec_to_intervals(vec),15*1e-3*samprate)
+      for (samprate,vec) in zip(samprates,np.array([env > mean for (env,mean) in zip(envs,means)]).astype(int))
   ])
   peaks = np.array([
-    keep_intervals_ge_length(vec_to_intervals(vec),23)
-      for vec in np.array([env > sd3 for (env,sd3) in zip(envs,sd3s)]).astype(int)
+    keep_intervals_ge_length(vec_to_intervals(vec),15*1e-3*samprate)
+      for (samprate,vec) in zip(samprates,np.array([env > sd3 for (env,sd3) in zip(envs,sd3s)]).astype(int))
   ])
   rips = np.vstack(np.array([keep_intersects(large,peak) for (large,peak) in zip(larges,peaks)]))
   rips = merge_intervals(rips[rips[:,0].argsort()]) # sort rows by first column; then merge overlaps

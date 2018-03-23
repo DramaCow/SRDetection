@@ -4,7 +4,7 @@ import decoder as bd
 from astar import astar, create_grid, Node
 
 # === DATA SOURCE ===
-from mj import pos, spk, maze_epoch, spatial_bin_size
+from gb import pos, spk, maze_epoch, spatial_bin_size
 
 # === DECODER ===
 decoder = bd.Decoder(pos,spk,spatial_bin_size)

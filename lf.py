@@ -41,11 +41,18 @@ sigs = np.array([sig/(2*lim) for (sig,lim) in zip(sigs,lims)])
 envs = np.array([env/(2*lim) for (env,lim) in zip(envs,lims)])
 
 fig = plt.figure()
-for i in range(30):
+for i in np.arange(0,3000,5):
+  ax = plt.axes()
   for j,(samprate,sig,env) in enumerate(zip(samprates,sigs,envs)):
-    start = i*int(samprate/2)
-    end = (i+1)*int(samprate/2)
-    plt.plot(sig[start:end]+j,'k-')
-    plt.plot(env[start:end]+j,'r-')
+    start = i
+    end = i+int(samprate/2)
+
+    rips_visible = rips[np.logical_and(rips[:,1]>=start,rips[:,0]<=end)]
+    for rip in rips_visible:
+      ax.axvspan(rip[0], rip[1], alpha=0.3)
+
+    plt.plot(range(start,end),sig[start:end]+j,'k-')
+    plt.plot(range(start,end),env[start:end]+j,'r-')
+    plt.xlim([start,end])
     plt.ylim([-0.5,len(tetrodes)-0.5])
-  plt.show(block=False) ; plt.pause(0.5) ; fig.clf()
+  plt.show(block=False) ; plt.pause(0.1) ; fig.clf()
