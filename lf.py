@@ -21,7 +21,7 @@ spk_info = np.array([units[0]['data'][0] for tetrode in spk_mat['spikes'][0][day
 spk = np.array([unit[:,0] for unit in spk_info if unit.size > 0])
 
 # eeg (lfp) info
-tetrodes = range(2)
+tetrodes = range(4)
 eegs = np.array([
   sio.loadmat('Con/EEG/coneeg%02d-%1d-%02d.mat' % (day+1,epoch+1,tetrode+1))
   ['eeg'][0][day][0][epoch][0][tetrode][0]['data'][0].flatten() for tetrode in tetrodes
@@ -34,21 +34,18 @@ samprates = np.array([
   sio.loadmat('Con/EEG/coneeg%02d-%1d-%02d.mat' % (day+1,epoch+1,tetrode+1))
   ['eeg'][0][day][0][epoch][0][tetrode][0]['samprate'][0][0][0] for tetrode in tetrodes
 ])
+rips,sigs,envs = spw_r_detect(eegs,samprates)
 
-rips = spw_r_detect(eegs,samprates)
+lims = np.array([max(np.abs(np.min(sig)),np.abs(np.max(sig))) for sig in sigs])
+sigs = np.array([sig/(2*lim) for (sig,lim) in zip(sigs,lims)])
+envs = np.array([env/(2*lim) for (env,lim) in zip(envs,lims)])
 
-'''
-for samprate,signal,env,mean,sd3,large,peak in zip(samprates,signals,envs,means,sd3s,larges,peaks):
-  fig = plt.figure()
-  for i in range(30):
+fig = plt.figure()
+for i in range(30):
+  for j,(samprate,sig,env) in enumerate(zip(samprates,sigs,envs)):
     start = i*int(samprate/2)
     end = (i+1)*int(samprate/2)
-    #plt.plot(signal[start:end])
-    #plt.plot(env[start:end],'r-')
-    #plt.plot([0,int(samprate/2)],[mean,mean])
-    #plt.plot([0,int(samprate/2)],[sd3,sd3])
-    #plt.ylim([min(signal),max(signal)])
-    plt.plot(large[start:end],'r-')
-    plt.plot(2*peak[start:end],'r-')
-    plt.show(block=False) ; plt.pause(0.01) ; fig.clf()
-'''
+    plt.plot(sig[start:end]+j,'k-')
+    plt.plot(env[start:end]+j,'r-')
+    plt.ylim([-0.5,len(tetrodes)-0.5])
+  plt.show(block=False) ; plt.pause(0.5) ; fig.clf()

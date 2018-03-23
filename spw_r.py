@@ -68,6 +68,4 @@ def spw_r_detect(eegs,samprates):
   rips = np.vstack(np.array([keep_intersects(large,peak) for (large,peak) in zip(larges,peaks)]))
   rips = merge_intervals(rips[rips[:,0].argsort()]) # sort rows by first column; then merge overlaps
 
-  plot_intervals(rips)
-
-  return rips
+  return rips,signals,envs
