@@ -2,6 +2,7 @@ import numpy as np
 import scipy.io as sio
 import matplotlib.pyplot as plt
 import decoder as bd
+from spw_r import merge_intervals
 
 experiment = 4 # max is 4
 
@@ -27,6 +28,6 @@ post_epoch = np.concatenate(spd['epochs'][epoch_id,5:7]).ravel()
 # get ripple periods (+/- 100ms around detected SPW-R peak times)
 rst = sio.loadmat('data_mj/rippspin-times-FGHIJ.mat')
 rippl_id = chr(ord('F')+experiment)+'rip'
-rip = bd.merge_intervals(np.append(rst[rippl_id]-0.1, rst[rippl_id]+0.1, axis=1)) 
+rip = merge_intervals(np.append(rst[rippl_id]-0.1, rst[rippl_id]+0.1, axis=1)) 
 
 spatial_bin_size = np.array([12,12])

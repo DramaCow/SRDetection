@@ -21,21 +21,6 @@ def plot_fr_field(f,delay=None):
         plt.show()
   plt.close()
 
-def merge_intervals(intervals):
-  result = np.empty((0,2))
-  startj = intervals[0,0]
-  endj   = intervals[0,1]
-  for i in range(1,len(intervals)):
-    startc = intervals[i,0]
-    endc   = intervals[i,1]
-    if startc <= endj:
-      endj = max(endc, endj)
-    else:
-      result = np.append(result, np.array([[startj, endj]]), axis=0)
-      startj = startc
-      endj   = endc
-  return np.append(result, np.array([[startj, endj]]), axis=0)
-
 def find_closest(A, targets):
   inds = np.clip(A.searchsorted(targets), 1, len(A)-1)
   left = A[inds-1]
