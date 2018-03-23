@@ -29,6 +29,7 @@ def keep_intersects(A,B):
   else:
     return np.array([interval for interval in A if any(np.logical_and(interval[0] <= B[:,0],B[:,1] <= interval[1]))])
 
+# assumes intervals are ordered by start time
 def merge_intervals(intervals):
   result = np.empty((0,2))
   startj = intervals[0,0]
@@ -59,6 +60,10 @@ def spw_r_detect(eegs,samprates):
     keep_intervals_ge_length(vec_to_intervals(vec),23)
       for vec in np.array([env > sd3 for (env,sd3) in zip(envs,sd3s)]).astype(int)
   ])
-  rips = np.array([keep_intersects(large,peak) for (large,peak) in zip(larges,peaks)])
+  rips = np.vstack(np.array([keep_intersects(large,peak) for (large,peak) in zip(larges,peaks)]))
+  print(rips)
+  #rips = rips.sort(axis=0)
+  print(rips[:,0])
+  print(rips.shape)
 
   return rips

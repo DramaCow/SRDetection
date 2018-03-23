@@ -21,7 +21,7 @@ spk_info = np.array([units[0]['data'][0] for tetrode in spk_mat['spikes'][0][day
 spk = np.array([unit[:,0] for unit in spk_info if unit.size > 0])
 
 # eeg (lfp) info
-tetrodes = range(1)
+tetrodes = range(2)
 eegs = np.array([
   sio.loadmat('Con/EEG/coneeg%02d-%1d-%02d.mat' % (day+1,epoch+1,tetrode+1))
   ['eeg'][0][day][0][epoch][0][tetrode][0]['data'][0].flatten() for tetrode in tetrodes
@@ -36,7 +36,6 @@ samprates = np.array([
 ])
 
 rips = spw_r_detect(eegs,samprates)
-print(rips)
 
 '''
 for samprate,signal,env,mean,sd3,large,peak in zip(samprates,signals,envs,means,sd3s,larges,peaks):
