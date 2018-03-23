@@ -3,12 +3,6 @@ import matplotlib.pyplot as plt
 from scipy.ndimage.filters import gaussian_filter
 from math import factorial
 
-def plot_intervals(intervals):
-  fint = intervals.flatten()
-  line = np.insert(fint, range(2,len(fint),2), np.nan)
-  plt.plot(line, np.zeros(len(line)))
-  plt.show()
-
 def plot_fr_field(f,delay=None):
   for i in range(len(f)):
     maxval = np.max(np.max(f[i]))

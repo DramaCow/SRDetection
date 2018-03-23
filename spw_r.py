@@ -1,5 +1,4 @@
 import numpy as np
-import scipy.io as sio
 from scipy.signal import hilbert, gaussian
 import matplotlib.pyplot as plt
 from bandpass import butter_bandpass_filter
@@ -45,6 +44,12 @@ def merge_intervals(intervals):
       endj   = endc
   return np.append(result, np.array([[startj, endj]]), axis=0)
 
+def plot_intervals(intervals):
+  fint = intervals.flatten()
+  line = np.insert(fint, range(2,len(fint),2), np.nan)
+  plt.plot(line, np.zeros(len(line)))
+  plt.show()
+
 def spw_r_detect(eegs,samprates):
   signals = np.array([butter_bandpass_filter(eeg,150,250,samprate) for (eeg,samprate) in zip(eegs,samprates)])
   envs = np.array([np.abs(hilbert(signal)) for signal in signals])
@@ -61,9 +66,8 @@ def spw_r_detect(eegs,samprates):
       for vec in np.array([env > sd3 for (env,sd3) in zip(envs,sd3s)]).astype(int)
   ])
   rips = np.vstack(np.array([keep_intersects(large,peak) for (large,peak) in zip(larges,peaks)]))
-  print(rips)
-  #rips = rips.sort(axis=0)
-  print(rips[:,0])
-  print(rips.shape)
+  rips = merge_intervals(rips[rips[:,0].argsort()]) # sort rows by first column; then merge overlaps
+
+  plot_intervals(rips)
 
   return rips
