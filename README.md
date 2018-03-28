@@ -12,10 +12,12 @@ Decoder class is defined in ```decoder.py```. Class requires: positions, neuron 
 
 Nx3 matrix, for N position recordings.
 
-```[[t1, x1, y1],
+```
+[[t1, x1, y1],
 [t2, x2, y2],
 ...
-[tn, xn, yn]]```
+[tn, xn, yn]]
+```
 
 where: ti = time of recording, xi = x-position, yi = y-position.
 
