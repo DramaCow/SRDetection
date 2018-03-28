@@ -2,13 +2,13 @@
 
 Sleep replay detection.
 
-# Bayesian Decoder
+## Bayesian Decoder
 
 Decoder class is defined in ```decoder.py```. Class requires: positions, neuron spike times, and size of spatial bins (for position discretisation)
 
-## Parameter format
+### Parameter format
 
-### Positions
+#### Positions
 
 Nx3 matrix, for N position recordings.
 
@@ -21,11 +21,11 @@ Nx3 matrix, for N position recordings.
 
 where: ti = time of recording, xi = x-position, yi = y-position.
 
-### Neuron spike times
+#### Neuron spike times
 
 N-length list of 1D array of spike times, for N neurons being recorded.
 
-## Use
+### Use
 
 ```calc_f_2d``` returns an N-length list of matrices representing the occupancy normalised fire-rate maps, for each N neurons.
 
@@ -33,25 +33,25 @@ N-length list of 1D array of spike times, for N neurons being recorded.
 
 ```prob_X_given_n``` returns posterior
 
-## Plots
+### Plots
 
 ```plot_fr_field(f,delay)``` displays the occupancy normalised fire-rate matrices as images for each neuron. 
 
-# Sharp-wave ripple detections
+## Sharp-wave ripple detections
 
 Sharp-wave ripple detection function defined in ```spw_r.py```; specifically is the function ```spw_r_detect.py```.
 
-## Parameter format
+### Parameter format
 
-### EEGs
+#### EEGs
 
 N-length list of 1D signals, for N tetrodes being recorded.
 
-### Samprates
+#### Samprates
 
 N-length array, where each entry is the sample rate used to record the corresponding tetrode signal.
 
-## Use
+### Use
 
 Function ```spw_r_detect.py``` returns:
 
@@ -59,11 +59,11 @@ Function ```spw_r_detect.py``` returns:
 - signals = bandpassed EEG signals (corresponding to each tetrode), filtered between 150-250Hz using 4th order butterworth filter.
 - envs = signal envelopes corresponding to each bandpassed signal. Envelopes were computed using Hilbert transforms (TODO: smooth using gaussian kernels).
 
-## Plots
+### Plots
 
 ```plot_ripples(samprates,rips,sigs,envs)``` draws signals, envelopes, and coloured axvspans to indicate intervals determined to be spw-rs.
 
-# Importing data and pre-processing
+## Importing data and pre-processing
 
 Importing data is specific to the data format provided by experimentalists. The amount of pre-processing required is also specific to the amount of pre-processing pre-provided by experimental labs. As such, it is easiest to handle importing and pre-processing in seperate scripts specific to each dataset.
 
@@ -73,11 +73,11 @@ Importing data is specific to the data format provided by experimentalists. The 
 
 Once useful data has been extracted, they should be stored in common variable names: ```pos```, ```spk```, ```maze_epoch```, etc. ```main.py``` can then easily import these specific variables and switch between which dataset is being processed with ease.
 
-# TODO
+## TODO
 
 - Linearise the position data (2D --> 1D), for L.F.'s data this is computing the shortest path distance between the reward site at the end of the centre arm of the maze. Who knows how you do this for the other datasets...
 - During rest epochs, divide detected ripple intervals into 15ms blocks and use the Bayesian decorder to determine whether these blocks correspond to positions from the maze epochs.
 
-# Questions
+## Questions
 
 - Do we need to linearise the positions? The benefit is that the ripple blocks can be plotted against positions s.t. the plot is 2D, but by having 2D positions the only difference is that this plot is 3D? I suppose this makes things more complicated, but then again there doesn't seem to be a general solution to linearising positions (it is map specific).
