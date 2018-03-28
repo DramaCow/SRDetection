@@ -3,11 +3,15 @@ import matplotlib.pyplot as plt
 import decoder as bd
 from astar import astar, create_grid, Node
 
+def example_linearise():
+  print('hello')
+
 # === DATA SOURCE ===
-from gb import pos, spk, maze_epoch, spatial_bin_size
+from mj import pos, spk, maze_epoch, spatial_bin_size
 
 # === DECODER ===
-decoder = bd.Decoder(pos,spk,spatial_bin_size)
+decoder = bd.Decoder(pos,spk,spatial_bin_size,example_linearise)
+#decoder = bd.Decoder(pos,spk,spatial_bin_size)
 f = decoder.calc_f_2d(maze_epoch)
 #bd.plot_fr_field(f,1.0)
 

@@ -42,7 +42,7 @@ def matmax(M):
   return (maxval, maxidx)
 
 class Decoder:
-  def __init__(self,pos,spk,spatial_bin_size):
+  def __init__(self,pos,spk,spatial_bin_size,linearise=None):
     self.pos = pos
     self.spk = spk
 
@@ -61,6 +61,10 @@ class Decoder:
     self.accmask = np.array(
       [[posmask[j,i] or sum_neighbours(posmask,i,j)>2 for i in range(posmask.shape[1])] for j in range(posmask.shape[0])]
     )
+
+    # convert spatial inform to 1D if linearisation function has been provided
+    if linearise is not None:
+      linearise()
 
   def calc_f_2d(self,interval):
     # calculate (approximate) occupancy (total time spent in location bins)

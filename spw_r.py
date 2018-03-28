@@ -50,11 +50,35 @@ def plot_intervals(intervals):
   plt.plot(line, np.zeros(len(line)))
   plt.show()
 
+def plot_ripples(samprates,rips,sigs,envs,duration=None,stride=20,delay=0.1):
+  lims = np.array([max(np.abs(np.min(sig)),np.abs(np.max(sig))) for sig in sigs])
+  sigs_n = np.array([sig/(2*lim) for (sig,lim) in zip(sigs,lims)])
+  envs_n = np.array([env/(2*lim) for (env,lim) in zip(envs,lims)])
+
+  duration = duration if duration is not None else np.min([len(sig) for sig in sigs])
+  
+  fig = plt.figure()
+  for i in np.arange(0,duration,stride):
+    ax = plt.axes()
+    for j,(samprate,sig,env) in enumerate(zip(samprates,sigs_n,envs_n)):
+      start = i
+      end = i+int(samprate/2)
+  
+      rips_visible = rips[np.logical_and(rips[:,1]>=start,rips[:,0]<=end)]
+      for rip in rips_visible:
+        ax.axvspan(rip[0], rip[1], alpha=0.3)
+  
+      plt.plot(range(start,end),sig[start:end]+j,'k-')
+      plt.plot(range(start,end),env[start:end]+j,'r-')
+      plt.xlim([start,end])
+      plt.ylim([-0.5,len(sigs_n)-0.5])
+    plt.show(block=False) ; plt.pause(delay) ; fig.clf()
+
 def spw_r_detect(eegs,samprates):
   signals = np.array([butter_bandpass_filter(eeg,150,250,samprate) for (eeg,samprate) in zip(eegs,samprates)])
   envs = np.array([np.abs(hilbert(signal)) for signal in signals])
   means = np.array([np.mean(env) for env in envs])
-  sd3s = np.array([np.mean(env)+1*np.std(env) for env in envs])
+  sd3s = np.array([np.mean(env)+3*np.std(env) for env in envs])
 
   #samps_per_bin = 15*1e-3*samprates
   larges = np.array([
@@ -66,6 +90,7 @@ def spw_r_detect(eegs,samprates):
       for (samprate,vec) in zip(samprates,np.array([env > sd3 for (env,sd3) in zip(envs,sd3s)]).astype(int))
   ])
   rips = np.vstack(np.array([keep_intersects(large,peak) for (large,peak) in zip(larges,peaks)]))
-  rips = merge_intervals(rips[rips[:,0].argsort()]) # sort rows by first column; then merge overlaps
+  if rips.size > 0:
+    rips = merge_intervals(rips[rips[:,0].argsort()]) # sort rows by first column; then merge overlaps
 
   return rips,signals,envs
