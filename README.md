@@ -62,3 +62,11 @@ Function ```spw_r_detect.py``` returns:
 ## Plots
 
 ```plot_ripples(samprates,rips,sigs,envs)``` draws signals, envelopes, and coloured axvspans to indicate intervals determined to be spw-rs.
+
+# Importing data and pre-processing
+
+Importing data is specific to the data format provided by experimentalists. The amount of pre-processing required is also specific to the amount of pre-processing pre-provided by experimental labs. As such, it is easiest to handle importing and pre-processing in seperate scripts specific to each dataset.
+
+- ```mj.py``` pre-processes data from Matt Jones' lab. Provides: positions, spike times, and peak ripple times. Ripples are thus taken to be intervals +/-100ms around peak ripple times (with merging of overlapping intervals).
+- ```gb.py``` pre-processes data from that NYU lab, whos name I cannot remember... Provides: positions, spike times, and EEG signals downsampled to 1250Hz? (confirm?) Much noise present in periodic frequency bands - though I have yet to observe this in python (perhaps it was an artifact of Matlab's signal processing? Though, I highly doubt it.)
+- ```lf.py``` pre-processes data from Loren M Frank's lab. Provides: positions, spike times, and EEG signals downsampled to ~1500Hz. Whilst There does not seem to be unsual levels of noise, once the EEGs have been bandpassed they do not provide as salient ripple intervals as L.F.'s paper suggests. (TODO: investigate this, but for now I will continue under the assumption that the detected ripple intervals are correct.).
