@@ -2,6 +2,7 @@ import numpy as np
 import matplotlib.pyplot as plt
 from scipy.ndimage.filters import gaussian_filter
 from math import factorial
+from astar import astar, create_grid, Node
 
 def plot_fr_field(f,delay=None):
   for i in range(len(f)):
@@ -42,7 +43,7 @@ def matmax(M):
   return (maxval, maxidx)
 
 class Decoder:
-  def __init__(self,pos,spk,spatial_bin_size,linearise=None):
+  def __init__(self,pos,spk,spatial_bin_size,lin_point=None):
     self.pos = pos
     self.spk = spk
 
@@ -63,8 +64,8 @@ class Decoder:
     )
 
     # convert spatial inform to 1D if linearisation function has been provided
-    if linearise is not None:
-      linearise()
+    if lin_point is not None:
+      print('lin-point is not None')
 
   def calc_f_2d(self,interval):
     # calculate (approximate) occupancy (total time spent in location bins)
@@ -80,11 +81,7 @@ class Decoder:
       tspk = self.get_spike_times(i,interval)            # get times neuron spiked during interval
       f[i] = self.occ_mat(self.approx_pos_at_time(tspk)) # count number of spikes occuring at each pos-bin
       f[i][posmask] = f[i][posmask] / occ[posmask]       # fr = spike count / time spent in each pos-bin
-      #oldmax = np.max(np.max(f[i]))
       f[i] = gaussian_filter(f[i],1.0)*self.accmask  # blur a little
-      #newmax = np.max(np.max(f[i]))
-      #if newmax != 0:
-      #  f[i] = (oldmax/newmax)*f[i]    # conserve old max value
     print("processing neurons...COMPLETE.")
     print("all done.")
     return f
@@ -95,6 +92,7 @@ class Decoder:
   def get_pos(self,interval):
     return self.pos[np.logical_and(interval[0]<=self.pos[:,0], self.pos[:,0]<=interval[1]),:]
 
+  # 2D occupancy map
   def occ_mat(self,pos,a=None):
     bin_pos = self.pos_to_x(pos[:,1:3])
     occ = np.zeros(self.map_dimensions)
@@ -105,6 +103,16 @@ class Decoder:
       occ = (a/np.sum(np.sum(occ)))*occ
     occ[np.isnan(occ)] = 0
     return occ
+
+  # 1D occupancy map
+  def occ_vec(self,pos,a=None):
+    bin_pos = self.pos_to_x(pos[:,1:3])
+    # TODO: vector length determined by largest possible shortest path distance
+    #       perhaps it would be easiest to compute the shortest path for each position
+    #       then create a mapping from 2D positions to 1D positions
+    # NOTE: to compute the shortest path from some node to every other node, it is unnecessary
+    #       (infact, possibly more expensive) to use repeated uses of astar. instead, consider
+    #       Dijkstra's algorithm?? (heuristic is not applicable when there is no specific target)
 
   def approx_pos_at_time(self,times):
     return np.append(np.array([times]).T, self.pos[find_closest(self.pos[:,0], times), 1:3], axis=1)

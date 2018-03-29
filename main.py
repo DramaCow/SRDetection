@@ -3,18 +3,23 @@ import matplotlib.pyplot as plt
 import decoder as bd
 from astar import astar, create_grid, Node
 
-def example_linearise():
-  print('hello')
-
 # === DATA SOURCE ===
-from mj import pos, spk, maze_epoch, spatial_bin_size
+from lf import pos, spk, maze_epoch, spatial_bin_size
+lin_point = np.array([35,50])
 
 # === DECODER ===
-decoder = bd.Decoder(pos,spk,spatial_bin_size,example_linearise)
+decoder = bd.Decoder(pos,spk,spatial_bin_size,lin_point)
 #decoder = bd.Decoder(pos,spk,spatial_bin_size)
 f = decoder.calc_f_2d(maze_epoch)
 #bd.plot_fr_field(f,1.0)
 
+# === DETERMINE LIN-POINT ===
+#accmask = decoder.accmask.astype(int); accmask[35,50] = 2
+#print(accmask)
+#plt.imshow(accmask,origin='lower')
+#plt.show()
+
+'''
 # === TEST ===
 fig = plt.figure()
 window = 0.5
@@ -57,3 +62,4 @@ print('average path length = %.2f' % np.mean(path_lengths))
 print('number of close results = %d/%d' % (np.sum(path_lengths<10),len(path_lengths)))
 print('min path length = %.2f' % np.min(path_lengths))
 print('max path length = %.2f' % np.max(path_lengths))
+'''
