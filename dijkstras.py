@@ -24,7 +24,7 @@ def create_graph(grid):
 # computes shortest paths between s and every other node in G
 def Dijkstras(G, s):
   Q = set()
-  dist = defaultdict(lambda: np.inf)
+  dist = defaultdict(lambda: np.nan)
   prev = defaultdict(lambda: None)
 
   for v in G.keys():
@@ -32,7 +32,7 @@ def Dijkstras(G, s):
     prev[v] = None
     Q.add(v)
 
-  dist[s] = 0
+  dist[tuple(s)] = 0
 
   while len(Q) > 0:
     u = min((v for v in dist if v in Q),key=dist.get)

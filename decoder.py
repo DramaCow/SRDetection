@@ -3,6 +3,7 @@ import matplotlib.pyplot as plt
 from scipy.ndimage.filters import gaussian_filter
 from math import factorial
 from astar import astar, create_grid, Node
+from dijkstras import shortest_path_mat
 
 def plot_fr_field(f,delay=None):
   for i in range(len(f)):
@@ -65,7 +66,56 @@ class Decoder:
 
     # convert spatial inform to 1D if linearisation function has been provided
     if lin_point is not None:
-      print('lin-point is not None')
+      self.dist1d = shortest_path_mat(self.accmask,lin_point)
+      #plt.imshow(self.dist1d)
+      #plt.show()
+      print(self.occ_vec(self.pos))
+
+  # ===========================
+  # === AUXILIARY FUNCTIONS ===
+  # ===========================
+
+  def get_pos(self,interval):
+    return self.pos[np.logical_and(interval[0]<=self.pos[:,0], self.pos[:,0]<=interval[1]),:]
+
+  def get_spike_times(self,i,interval):
+    return self.spk[i][np.logical_and(interval[0]<=self.spk[i], self.spk[i]<=interval[1])]
+
+  # maintains input times but uses nearest positions
+  def approx_pos_at_time(self,times):
+    return np.append(np.array([times]).T, self.pos[find_closest(self.pos[:,0], times), 1:3], axis=1)
+
+  # uses times associated with nearest positions
+  def nearest_pos_at_time(self,times):
+    return self.pos[find_closest(self.pos[:,0], times),:]
+
+  def pos_to_x(self,pos):
+    pos_r = np.append([pos[:,1]],[pos[:,0]],axis=0).T
+    return np.round(pos_r/self.spatial_bin_size).astype(int)
+
+  def pos_to_x1d(self,pos):
+    return np.array(list(map(lambda x: self.dist1d[tuple(x)], self.pos_to_x(pos))))
+
+  # 2D occupancy map
+  def occ_mat(self,pos,a=None):
+    bin_pos = self.pos_to_x(pos[:,1:3])
+    occ = np.zeros(self.map_dimensions)
+    for j in range(0,self.map_dimensions[0]):
+      for i in range(0,self.map_dimensions[1]):
+        occ[j,i] = np.sum(np.all(bin_pos == [j,i],axis=1))
+    if a != None:
+      occ = (a/np.sum(np.sum(occ)))*occ
+    occ[np.isnan(occ)] = 0
+    return occ
+
+  # 1D occupancy map
+  def occ_vec(self,pos,a=None):
+    lim = np.nanmax(self.dist1d[np.isfinite(self.dist1d)])
+    print(np.ceil(lim/2))
+
+  # =====================================
+  # === PARAMETER GENERATOR FUNCTIONS ===
+  # =====================================
 
   def calc_f_2d(self,interval):
     # calculate (approximate) occupancy (total time spent in location bins)
@@ -86,43 +136,9 @@ class Decoder:
     print("all done.")
     return f
     
-  def get_spike_times(self,i,interval):
-    return self.spk[i][np.logical_and(interval[0]<=self.spk[i], self.spk[i]<=interval[1])]
-
-  def get_pos(self,interval):
-    return self.pos[np.logical_and(interval[0]<=self.pos[:,0], self.pos[:,0]<=interval[1]),:]
-
-  # 2D occupancy map
-  def occ_mat(self,pos,a=None):
-    bin_pos = self.pos_to_x(pos[:,1:3])
-    occ = np.zeros(self.map_dimensions)
-    for j in range(0,self.map_dimensions[0]):
-      for i in range(0,self.map_dimensions[1]):
-        occ[j,i] = np.sum(np.all(bin_pos == [j,i],axis=1))
-    if a != None:
-      occ = (a/np.sum(np.sum(occ)))*occ
-    occ[np.isnan(occ)] = 0
-    return occ
-
-  # 1D occupancy map
-  def occ_vec(self,pos,a=None):
-    bin_pos = self.pos_to_x(pos[:,1:3])
-    # TODO: vector length determined by largest possible shortest path distance
-    #       perhaps it would be easiest to compute the shortest path for each position
-    #       then create a mapping from 2D positions to 1D positions
-    # NOTE: to compute the shortest path from some node to every other node, it is unnecessary
-    #       (infact, possibly more expensive) to use repeated uses of astar. instead, consider
-    #       Dijkstra's algorithm?? (heuristic is not applicable when there is no specific target)
-
-  def approx_pos_at_time(self,times):
-    return np.append(np.array([times]).T, self.pos[find_closest(self.pos[:,0], times), 1:3], axis=1)
-
-  def nearest_pos_at_time(self,times):
-    return self.pos[find_closest(self.pos[:,0], times),:]
-
-  def pos_to_x(self,pos):
-    pos_r = np.append([pos[:,1]],[pos[:,0]],axis=0).T
-    return np.round(pos_r/self.spatial_bin_size).astype(int)
+  # ========================
+  # === OUTPUT FUNCTIONS ===
+  # ========================
 
   # per-position likelihood
   def prob_n_given_x(self,n,x,f,tau):
@@ -142,9 +158,14 @@ class Decoder:
     C = 1/np.sum(np.sum(prob)) if np.sum(np.sum(prob)) > 0 else 0
     return C*prob
 
+  # expectation
   def ex_n_given_x(self,x,f,tau):
     xidx = tuple(x)
     return np.array([f[i][xidx]*tau for i in range(len(self.spk))])
+
+  # ======================
+  # === TEST FUNCTIONS ===
+  # ======================
 
   def approx_n_and_x(self,interval,time_bin_size):
     num_time_bins = int(np.ceil((interval[1]-interval[0])/time_bin_size))
