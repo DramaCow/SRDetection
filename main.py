@@ -68,8 +68,8 @@ print('max path length = %.2f' % np.max(path_lengths))
 # === TEST 1D ===
 fig = plt.figure()
 window = 0.5
-path_lengths = np.zeros(20)
-for p in range(len(path_lengths)):
+disparity = np.zeros(20)
+for p in range(len(disparity)):
   # generate test data
   [t,x] = decoder.random_t_x(maze_epoch)
   x1d = decoder.x_to_x1d(x)
@@ -81,15 +81,25 @@ for p in range(len(path_lengths)):
   probvec = decoder.prob_X1d_given_n(n,f,window)
   [argmax_p, x1d_] = bd.vecmax(probvec)
   print('prob = %.3f, x1d_ =' % argmax_p, x1d_,end=', ')
+  disparity[p] = np.abs(x1d-x1d_)
 
   # plots
   l1, = plt.plot(probvec, 'k-')
-  l2 = plt.axvline(x=x1d_,color='b')
-  l3 = plt.axvline(x=x1d,color='r')
-  plt.legend([l1,l2,l3],['posterior','prediction','actual'])
+  if x1d == x1d_:
+    l2 = plt.axvline(x=x1d_,color='lime')
+    plt.legend([l1,l2],['posterior','correct prediction'])
+  else:
+    l2 = plt.axvline(x=x1d_,color='b')
+    l3 = plt.axvline(x=x1d,color='r')
+    plt.legend([l1,l2,l3],['posterior','prediction','actual'])
   plt.xlabel('distance from reward arm (number of cells)')
   plt.ylabel('probability')
   plt.title('Prediction of distance from reward arm')
-  print('error = %.2f' % np.abs(x1d-x1d_))
+  print('error = %.2f' % disparity[p])
   plt.show(block=False) ; plt.pause(1) ; fig.clf()
   #plt.show()
+
+print('average path length = %.2f' % np.mean(disparity))
+print('number of close results = %d/%d' % (np.sum(disparity<10),len(disparity)))
+print('min path length = %.2f' % np.min(disparity))
+print('max path length = %.2f' % np.max(disparity))

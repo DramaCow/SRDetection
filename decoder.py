@@ -201,7 +201,7 @@ class Decoder:
       tspk = self.get_spike_times(i,interval)            # get times neuron spiked during interval
       f[i] = self.occ_vec(self.approx_pos_at_time(tspk)) # count number of spikes occuring at each pos-bin
       f[i][posmask] = f[i][posmask] / occ[posmask]       # count number of spikes occuring at each pos-bin
-      f[i] = gaussian_filter(f[i],2.0)                   # blur a little
+      f[i] = gaussian_filter(f[i],1.0)                   # blur a little
     print("processing neurons...COMPLETE.")
     print("all done.")
     return f
