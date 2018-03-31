@@ -12,7 +12,7 @@ decoder = bd.Decoder(pos,spk,spatial_bin_length,lin_point)
 #f = decoder.calc_f_2d(maze_epoch)
 #bd.plot_fr_field_2d(f,1.0)
 f = decoder.calc_f_1d(maze_epoch)
-bd.plot_fr_field_1d(f,1.0)
+#bd.plot_fr_field_1d(f,1.0)
 
 # === DETERMINE LIN-POINT ===
 #accmask = decoder.accmask.astype(int); accmask[35,50] = 2
@@ -21,7 +21,7 @@ bd.plot_fr_field_1d(f,1.0)
 #plt.show()
 
 '''
-# === TEST ===
+# === TEST 2D ===
 fig = plt.figure()
 window = 0.5
 path_lengths = np.zeros(20)
@@ -64,3 +64,32 @@ print('number of close results = %d/%d' % (np.sum(path_lengths<10),len(path_leng
 print('min path length = %.2f' % np.min(path_lengths))
 print('max path length = %.2f' % np.max(path_lengths))
 '''
+
+# === TEST 1D ===
+fig = plt.figure()
+window = 0.5
+path_lengths = np.zeros(20)
+for p in range(len(path_lengths)):
+  # generate test data
+  [t,x] = decoder.random_t_x(maze_epoch)
+  x1d = decoder.x_to_x1d(x)
+  print('t = %.2fs, x1d =' % t, x1d, end=', ')
+  (n,_) = decoder.approx_n_and_x((t-window/2,t+window/2),window)
+  n_ex = decoder.ex_n_given_x1d(x1d,f,window)
+
+  # calculate argmax probability
+  probvec = decoder.prob_X1d_given_n(n,f,window)
+  [argmax_p, x1d_] = bd.vecmax(probvec)
+  print('prob = %.3f, x1d_ =' % argmax_p, x1d_,end=', ')
+
+  # plots
+  l1, = plt.plot(probvec, 'k-')
+  l2 = plt.axvline(x=x1d_,color='b')
+  l3 = plt.axvline(x=x1d,color='r')
+  plt.legend([l1,l2,l3],['posterior','prediction','actual'])
+  plt.xlabel('distance from reward arm (number of cells)')
+  plt.ylabel('probability')
+  plt.title('Prediction of distance from reward arm')
+  print('error = %.2f' % np.abs(x1d-x1d_))
+  plt.show(block=False) ; plt.pause(1) ; fig.clf()
+  #plt.show()

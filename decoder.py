@@ -53,7 +53,10 @@ def matmax(M):
       if M[j,i] > maxval:
         maxval = M[j,i]
         maxidx = np.array([j,i])
-  return (maxval, maxidx)
+  return maxval, maxidx
+
+def vecmax(vec):
+  return np.max(vec), np.argmax(vec)
 
 class Decoder:
   def __init__(self,pos,spk,spatial_bin_length,lin_point=None):
@@ -79,7 +82,7 @@ class Decoder:
 
     # convert spatial inform to 1D if linearisation function has been provided
     if lin_point is not None:
-      self.dist1d = np.round(shortest_path_mat(self.accmask,lin_point))
+      self.dist1d = np.round(shortest_path_mat(self.accmask,lin_point)).astype(int)
       self.lim1d = np.nanmax(self.dist1d[np.isfinite(self.dist1d)]).astype(int)+1
       self.p_x1d = self.occ_vec(self.pos,1) # prior probability (occupancy normalised to probability)
       '''
@@ -94,9 +97,9 @@ class Decoder:
         print()
       print(self.occ_vec(self.pos))
       print(self.p_x1d)
-      '''
       plt.imshow(self.dist1d,origin='lower')
       plt.show()
+      '''
 
   # ===========================
   # === AUXILIARY FUNCTIONS ===
@@ -125,7 +128,10 @@ class Decoder:
 
   # convert 2D co-ordinate to 1D co-ordinate
   def x_to_x1d(self,xs):
-    return np.array(list(map(lambda x: self.dist1d[tuple(x)], xs)))
+    if xs.ndim == 2:
+      return np.array(list(map(lambda x: self.dist1d[tuple(x)], xs)))
+    else: #xs.ndim == 1
+      return self.dist1d[tuple(xs)]
 
   # convert position to 1D co-ordinate
   def pos_to_x1d(self,pos):
