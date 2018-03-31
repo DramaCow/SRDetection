@@ -5,7 +5,7 @@ from math import factorial
 from astar import astar, create_grid, Node
 from dijkstras import shortest_path_mat
 
-def plot_fr_field(f,delay=None):
+def plot_fr_field_2d(f,delay=None):
   for i in range(len(f)):
     maxval = np.max(np.max(f[i]))
     if maxval > 0:
@@ -13,6 +13,18 @@ def plot_fr_field(f,delay=None):
       plt.imshow(f[i],origin='lower')
       if delay:
         plt.show(block=False) ; plt.pause(delay)
+      else:
+        plt.show()
+  plt.close()
+
+def plot_fr_field_1d(f,delay=None):
+  for i in range(len(f)):
+    maxval = np.max(f[i])
+    if maxval > 0:
+      plt.title("Neuron %d" % i)
+      plt.plot(f[i]/maxval)
+      if delay:
+        plt.show(block=False) ; plt.pause(delay) ; plt.cla()
       else:
         plt.show()
   plt.close()
@@ -44,7 +56,7 @@ def matmax(M):
   return (maxval, maxidx)
 
 class Decoder:
-  def __init__(self,pos,spk,spatial_bin_size,lin_point=None):
+  def __init__(self,pos,spk,spatial_bin_length,lin_point=None):
     self.pos = pos
     self.spk = spk
 
@@ -52,7 +64,8 @@ class Decoder:
     #self.map_dimensions = np.array([17,31])
     #map_size = np.array([max(self.pos[:,2]),max(self.pos[:,1])])
     #self.spatial_bin_size = map_size/(self.map_dimensions-1)
-    self.spatial_bin_size = spatial_bin_size
+    self.spatial_bin_length = spatial_bin_length
+    self.spatial_bin_size = np.array([spatial_bin_length, self.spatial_bin_length])
     map_size = np.array([max(self.pos[:,2]),max(self.pos[:,1])])
     self.map_dimensions = np.ceil((map_size/self.spatial_bin_size)+1).astype(int)
     print(self.map_dimensions)
@@ -66,18 +79,34 @@ class Decoder:
 
     # convert spatial inform to 1D if linearisation function has been provided
     if lin_point is not None:
-      self.dist1d = shortest_path_mat(self.accmask,lin_point)
-      #plt.imshow(self.dist1d)
-      #plt.show()
+      self.dist1d = np.round(shortest_path_mat(self.accmask,lin_point))
+      self.lim1d = np.nanmax(self.dist1d[np.isfinite(self.dist1d)]).astype(int)+1
+      self.p_x1d = self.occ_vec(self.pos,1) # prior probability (occupancy normalised to probability)
+      '''
+      for r in range(self.dist1d.shape[0]):
+        for c in range(self.dist1d.shape[1]):
+          if np.isnan(self.dist1d[r,c]):
+            print('.',end=' ')
+          elif np.isinf(self.dist1d[r,c]):
+            print('X',end=' ')
+          else:
+            print('%.0f' % (self.dist1d[r,c]/10),end=' ')
+        print()
       print(self.occ_vec(self.pos))
+      print(self.p_x1d)
+      '''
+      plt.imshow(self.dist1d,origin='lower')
+      plt.show()
 
   # ===========================
   # === AUXILIARY FUNCTIONS ===
   # ===========================
 
+  # get positions within interval
   def get_pos(self,interval):
     return self.pos[np.logical_and(interval[0]<=self.pos[:,0], self.pos[:,0]<=interval[1]),:]
 
+  # get spike times within interval
   def get_spike_times(self,i,interval):
     return self.spk[i][np.logical_and(interval[0]<=self.spk[i], self.spk[i]<=interval[1])]
 
@@ -89,12 +118,18 @@ class Decoder:
   def nearest_pos_at_time(self,times):
     return self.pos[find_closest(self.pos[:,0], times),:]
 
+  # convert position to 2D co-ordinate
   def pos_to_x(self,pos):
     pos_r = np.append([pos[:,1]],[pos[:,0]],axis=0).T
     return np.round(pos_r/self.spatial_bin_size).astype(int)
 
+  # convert 2D co-ordinate to 1D co-ordinate
+  def x_to_x1d(self,xs):
+    return np.array(list(map(lambda x: self.dist1d[tuple(x)], xs)))
+
+  # convert position to 1D co-ordinate
   def pos_to_x1d(self,pos):
-    return np.array(list(map(lambda x: self.dist1d[tuple(x)], self.pos_to_x(pos))))
+    return self.x_to_x1d(self.pos_to_x(pos))
 
   # 2D occupancy map
   def occ_mat(self,pos,a=None):
@@ -110,13 +145,22 @@ class Decoder:
 
   # 1D occupancy map
   def occ_vec(self,pos,a=None):
-    lim = np.nanmax(self.dist1d[np.isfinite(self.dist1d)])
-    print(np.ceil(lim/2))
+    rows,cols = self.dist1d.shape
+    occ = self.occ_mat(pos)
+    vec = np.array([
+      sum([occ[r,c] for r in range(rows) for c in range(cols) if self.dist1d[r,c]==dist])
+        for dist in range(self.lim1d)
+    ])
+    if a != None:
+      vec = (a/np.sum(vec))*vec
+    vec[np.isnan(vec)] = 0
+    return vec
 
   # =====================================
   # === PARAMETER GENERATOR FUNCTIONS ===
   # =====================================
 
+  # returns occupancy normalised 2D fire rate map for each neuron
   def calc_f_2d(self,interval):
     # calculate (approximate) occupancy (total time spent in location bins)
     print("calculating 2D occupancy map...", end="")
@@ -131,14 +175,34 @@ class Decoder:
       tspk = self.get_spike_times(i,interval)            # get times neuron spiked during interval
       f[i] = self.occ_mat(self.approx_pos_at_time(tspk)) # count number of spikes occuring at each pos-bin
       f[i][posmask] = f[i][posmask] / occ[posmask]       # fr = spike count / time spent in each pos-bin
-      f[i] = gaussian_filter(f[i],1.0)*self.accmask  # blur a little
+      f[i] = gaussian_filter(f[i],1.0)*self.accmask      # blur a little
+    print("processing neurons...COMPLETE.")
+    print("all done.")
+    return f
+
+  # returns occupancy normalised 1D fire rate map for each neuron
+  def calc_f_1d(self,interval):
+    # calculate (approximate) occupancy (total time spent in location bins)
+    print("calculating 1D occupancy map...", end="")
+    occ = self.occ_vec(self.get_pos(interval),interval[1]-interval[0]) # count no. ticks in each pos-bin & norm. by total dur.
+    posmask = occ > 0
+    print("COMPLETE.")
+
+    # approximate position of neuron firing
+    f = np.empty((len(self.spk),len(occ)))
+    for i in range(len(self.spk)):
+      print("processing neurons: %d / %d\r" % (i, len(self.spk)), end="")
+      tspk = self.get_spike_times(i,interval)            # get times neuron spiked during interval
+      f[i] = self.occ_vec(self.approx_pos_at_time(tspk)) # count number of spikes occuring at each pos-bin
+      f[i][posmask] = f[i][posmask] / occ[posmask]       # count number of spikes occuring at each pos-bin
+      f[i] = gaussian_filter(f[i],2.0)                   # blur a little
     print("processing neurons...COMPLETE.")
     print("all done.")
     return f
     
-  # ========================
-  # === OUTPUT FUNCTIONS ===
-  # ========================
+  # ===========================
+  # === OUTPUT FUNCTIONS 2D ===
+  # ===========================
 
   # per-position likelihood
   def prob_n_given_x(self,n,x,f,tau):
@@ -149,7 +213,7 @@ class Decoder:
   # likelihood
   def prob_n_given_X(self,n,f,tau):
     return np.array(
-      [[self.prob_n_given_x(n,(j,i),f,tau) for i in range(self.map_dimensions[1])] for j in range(self.map_dimensions[0])]
+      [[self.prob_n_given_x1d(n,(j,i),f,tau) for i in range(self.map_dimensions[1])] for j in range(self.map_dimensions[0])]
     )
 
   # posterior
@@ -163,10 +227,36 @@ class Decoder:
     xidx = tuple(x)
     return np.array([f[i][xidx]*tau for i in range(len(self.spk))])
 
+  # ===========================
+  # === OUTPUT FUNCTIONS 1D ===
+  # ===========================
+
+  # per-position likelihood
+  def prob_n_given_x1d(self,n,x1d,f,tau):
+    ngtz = n[n > 0]
+    return np.prod([((tau*f[i][x1d])**n[i]/factorial(n[i]))*np.exp(-tau*f[i][x1d]) for i in range(len(ngtz))])
+
+  # likelihood
+  def prob_n_given_X1d(self,n,f,tau):
+    return np.array(
+      [self.prob_n_given_x1d(n,x1d,f,tau) for x1d in range(self.lim1d)]
+    )
+
+  # posterior
+  def prob_X1d_given_n(self,n,f,tau):
+    prob = self.p_x1d*self.prob_n_given_X1d(n,f,tau)
+    C = 1/np.sum(prob) if np.sum(prob) > 0 else 0
+    return C*prob
+
+  # expectation
+  def ex_n_given_x1d(self,x1d,f,tau):
+    return np.array([f[i][x1d]*tau for i in range(len(self.spk))])
+
   # ======================
   # === TEST FUNCTIONS ===
   # ======================
 
+  # returns number of spikes and position within an interval
   def approx_n_and_x(self,interval,time_bin_size):
     num_time_bins = int(np.ceil((interval[1]-interval[0])/time_bin_size))
     pos = self.get_pos(interval)
@@ -185,6 +275,7 @@ class Decoder:
     #print("all done.")
     return (n, x)
 
+  # picks a random time and associated position within an interval
   def random_t_x(self,interval):
     rand = np.random.uniform(interval[0],interval[1])
     pos = self.nearest_pos_at_time([rand])

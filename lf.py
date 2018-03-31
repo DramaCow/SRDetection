@@ -22,7 +22,7 @@ spk = np.array([unit[:,0] for unit in spk_info if unit.size > 0])
 
 #print(min(pos[:,1]), max(pos[:,1]))
 #print(min(pos[:,2]), max(pos[:,2]))
-spatial_bin_size = np.array([2,2])
+spatial_bin_length = 2
 
 #plt.plot(pos[:,1],pos[:,2],'k.')
 #plt.show()

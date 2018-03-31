@@ -43,4 +43,4 @@ with h5py.File('data_gb/Achilles_10252013_sessInfo.mat', 'r') as f:
   pos = np.array([TimeStamps,TwoDLocation[0],TwoDLocation[1]]).T
   spk = np.array([SpikeTimes[SpikeIDs==i] for i in PyrIDs])
   #spk = np.array([SpikeTimes[SpikeIDs==i] for i in np.concatenate([IntIDs, PyrIDs])])
-  spatial_bin_size = np.array([0.04,0.04])
+  spatial_bin_length = 0.04

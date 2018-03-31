@@ -30,4 +30,4 @@ rst = sio.loadmat('data_mj/rippspin-times-FGHIJ.mat')
 rippl_id = chr(ord('F')+experiment)+'rip'
 rip = merge_intervals(np.append(rst[rippl_id]-0.1, rst[rippl_id]+0.1, axis=1)) 
 
-spatial_bin_size = np.array([12,12])
+spatial_bin_length = 12
