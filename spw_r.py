@@ -83,9 +83,9 @@ def plot_ripples(rips,times,sigs,envs,window_size=750,stride=20,duration=None,de
       plt.ylabel('tetrodes')
     plt.show(block=False) ; plt.pause(delay) ; fig.clf()
 
-def spw_r_detect(eegs,samprates,start_time=0,min_length=15e-3):
+def spw_r_detect(eegs,samprates,starttimes,min_length=15e-3):
   # time each sample occurs
-  times = np.array([[(1/samprate)*i+start_time for i in range(len(eeg))] for (samprate,eeg) in zip(samprates,eegs)])
+  times = np.array([[(1/samprate)*i+starttime for i in range(len(eeg))] for (eeg,samprate,starttime) in zip(eegs,samprates,starttimes)])
 
   # bandpass filtered signals and corresponding envelopes
   sigs  = np.array([butter_bandpass_filter(eeg,150,250,samprate) for (eeg,samprate) in zip(eegs,samprates)])
