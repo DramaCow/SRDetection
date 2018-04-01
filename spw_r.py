@@ -3,6 +3,7 @@ from scipy.signal import hilbert, gaussian
 import matplotlib.pyplot as plt
 from bandpass import butter_bandpass_filter
 
+# convert binary vector to list of intervals (w/ start and end times)
 def vec_to_intervals(vec):
   intervals = np.empty((0,2))
   start = None
@@ -19,9 +20,11 @@ def vec_to_intervals(vec):
     intervals = np.append(intervals,[[start,len(vec)-1]],axis=0)
   return intervals
 
+# keep intervals greater than length
 def keep_intervals_ge_length(intervals,length):
   return np.array([interval for interval in intervals if (interval[1] - interval[0]) >= length])
 
+# keep intervals in A that cover any intervals in B
 def keep_intersects(A,B):
   if (A.size == 0 or B.size == 0):
     return np.empty((0,2))
@@ -74,23 +77,28 @@ def plot_ripples(samprates,rips,sigs,envs,duration=None,stride=20,delay=0.1):
       plt.ylim([-0.5,len(sigs_n)-0.5])
     plt.show(block=False) ; plt.pause(delay) ; fig.clf()
 
-def spw_r_detect(eegs,samprates):
+def spw_r_detect(eegs,samprates,min_length=15e-3):
   signals = np.array([butter_bandpass_filter(eeg,150,250,samprate) for (eeg,samprate) in zip(eegs,samprates)])
   envs = np.array([np.abs(hilbert(signal)) for signal in signals])
   means = np.array([np.mean(env) for env in envs])
   sd3s = np.array([np.mean(env)+3*np.std(env) for env in envs])
 
-  #samps_per_bin = 15*1e-3*samprates
+  # intervals w/ envelope greater than mean (for longer than min_length)
   larges = np.array([
-    keep_intervals_ge_length(vec_to_intervals(vec),15*1e-3*samprate)
+    keep_intervals_ge_length(vec_to_intervals(vec),min_length*samprate)
       for (samprate,vec) in zip(samprates,np.array([env > mean for (env,mean) in zip(envs,means)]).astype(int))
   ])
+  # intervals w/ envelope greater than mean + 3*s.d (for longer than min_length)
   peaks = np.array([
-    keep_intervals_ge_length(vec_to_intervals(vec),15*1e-3*samprate)
+    keep_intervals_ge_length(vec_to_intervals(vec),min_length*samprate)
       for (samprate,vec) in zip(samprates,np.array([env > sd3 for (env,sd3) in zip(envs,sd3s)]).astype(int))
   ])
+
+  # keep intervals in largest that contain intervals in peaks
   rips = np.vstack(np.array([keep_intersects(large,peak) for (large,peak) in zip(larges,peaks)]))
+
+  # sort rows by first column; then merge overlaps
   if rips.size > 0:
-    rips = merge_intervals(rips[rips[:,0].argsort()]) # sort rows by first column; then merge overlaps
+    rips = merge_intervals(rips[rips[:,0].argsort()]) 
 
   return rips,signals,envs
