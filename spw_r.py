@@ -4,8 +4,8 @@ import matplotlib.pyplot as plt
 from bandpass import butter_bandpass_filter
 
 # convert binary vector to list of intervals (w/ start and end times)
-def vec_to_intervals(vec):
-  intervals = np.empty((0,2))
+def vec_to_intervals(vec,time=None):
+  intervals = np.empty((0,2),dtype=int)
   start = None
   for i in range(len(vec)):
     if vec[i]:
@@ -18,7 +18,11 @@ def vec_to_intervals(vec):
         start = None
   if start is not None:
     intervals = np.append(intervals,[[start,len(vec)-1]],axis=0)
-  return intervals
+
+  if time is None:
+    return intervals
+  else:
+    return (lambda x: time[x])(intervals)
 
 # keep intervals greater than length
 def keep_intervals_ge_length(intervals,length):
@@ -53,45 +57,53 @@ def plot_intervals(intervals):
   plt.plot(line, np.zeros(len(line)))
   plt.show()
 
-def plot_ripples(samprates,rips,sigs,envs,duration=None,stride=20,delay=0.1):
-  lims = np.array([max(np.abs(np.min(sig)),np.abs(np.max(sig))) for sig in sigs])
-  sigs_n = np.array([sig/(2*lim) for (sig,lim) in zip(sigs,lims)])
-  envs_n = np.array([env/(2*lim) for (env,lim) in zip(envs,lims)])
+def plot_ripples(rips,times,sigs,envs,window_size=750,stride=20,duration=None,delay=0.1):
+  lims = np.array([max(np.abs(np.min(sig)),np.abs(np.max(sig))) for sig in sigs]) # largest y-dist from zero
+  sigs_n = np.array([sig/(2*lim) for (sig,lim) in zip(sigs,lims)])                # normalised signal
+  envs_n = np.array([env/(2*lim) for (env,lim) in zip(envs,lims)])                # normalised envelope
 
   duration = duration if duration is not None else np.min([len(sig) for sig in sigs])
   
   fig = plt.figure()
   for i in np.arange(0,duration,stride):
     ax = plt.axes()
-    for j,(samprate,sig,env) in enumerate(zip(samprates,sigs_n,envs_n)):
+    for j,(time,sig,env) in enumerate(zip(times,sigs_n,envs_n)):
       start = i
-      end = i+int(samprate/2)
+      end = i+window_size
   
-      rips_visible = rips[np.logical_and(rips[:,1]>=start,rips[:,0]<=end)]
+      rips_visible = rips[np.logical_and(rips[:,1]>=time[start],rips[:,0]<=time[end])]
       for rip in rips_visible:
         ax.axvspan(rip[0], rip[1], alpha=0.3)
   
-      plt.plot(range(start,end),sig[start:end]+j,'k-')
-      plt.plot(range(start,end),env[start:end]+j,'r-')
-      plt.xlim([start,end])
+      plt.plot(time[start:end],sig[start:end]+j,'k-')
+      plt.plot(time[start:end],env[start:end]+j,'r-')
+      plt.xlim([time[start],time[end]])
       plt.ylim([-0.5,len(sigs_n)-0.5])
+      plt.xlabel('time (s)')
+      plt.ylabel('tetrodes')
     plt.show(block=False) ; plt.pause(delay) ; fig.clf()
 
-def spw_r_detect(eegs,samprates,min_length=15e-3):
-  signals = np.array([butter_bandpass_filter(eeg,150,250,samprate) for (eeg,samprate) in zip(eegs,samprates)])
-  envs = np.array([np.abs(hilbert(signal)) for signal in signals])
+def spw_r_detect(eegs,samprates,start_time=0,min_length=15e-3):
+  # time each sample occurs
+  times = np.array([[(1/samprate)*i+start_time for i in range(len(eeg))] for (samprate,eeg) in zip(samprates,eegs)])
+
+  # bandpass filtered signals and corresponding envelopes
+  sigs  = np.array([butter_bandpass_filter(eeg,150,250,samprate) for (eeg,samprate) in zip(eegs,samprates)])
+  envs  = np.array([np.abs(hilbert(sig)) for sig in sigs])
+
+  # mean and s.d of each filtered-signal envelopes
   means = np.array([np.mean(env) for env in envs])
-  sd3s = np.array([np.mean(env)+3*np.std(env) for env in envs])
+  sd3s  = np.array([np.mean(env)+1*np.std(env) for env in envs])
 
   # intervals w/ envelope greater than mean (for longer than min_length)
   larges = np.array([
-    keep_intervals_ge_length(vec_to_intervals(vec),min_length*samprate)
-      for (samprate,vec) in zip(samprates,np.array([env > mean for (env,mean) in zip(envs,means)]).astype(int))
+    keep_intervals_ge_length(vec_to_intervals(vec,time),min_length)
+      for (samprate,time,vec) in zip(samprates,times,np.array([env > mean for (env,mean) in zip(envs,means)]).astype(int))
   ])
   # intervals w/ envelope greater than mean + 3*s.d (for longer than min_length)
   peaks = np.array([
-    keep_intervals_ge_length(vec_to_intervals(vec),min_length*samprate)
-      for (samprate,vec) in zip(samprates,np.array([env > sd3 for (env,sd3) in zip(envs,sd3s)]).astype(int))
+    keep_intervals_ge_length(vec_to_intervals(vec,time),min_length)
+      for (samprate,time,vec) in zip(samprates,times,np.array([env > sd3 for (env,sd3) in zip(envs,sd3s)]).astype(int))
   ])
 
   # keep intervals in largest that contain intervals in peaks
@@ -101,4 +113,4 @@ def spw_r_detect(eegs,samprates,min_length=15e-3):
   if rips.size > 0:
     rips = merge_intervals(rips[rips[:,0].argsort()]) 
 
-  return rips,signals,envs
+  return rips,times,sigs,envs
