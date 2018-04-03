@@ -82,7 +82,7 @@ class Decoder:
 
     # convert spatial inform to 1D if linearisation function has been provided
     if lin_point is not None:
-      self.dist1d = np.round(shortest_path_mat(self.accmask,lin_point)).astype(int)
+      self.dist1d = np.round(shortest_path_mat(self.accmask,lin_point))#.astype(int)
       self.lim1d = np.nanmax(self.dist1d[np.isfinite(self.dist1d)]).astype(int)+1
       self.p_x1d = self.occ_vec(self.pos,1) # prior probability (occupancy normalised to probability)
       '''
@@ -112,6 +112,10 @@ class Decoder:
   # get spike times within interval
   def get_spike_times(self,i,interval):
     return self.spk[i][np.logical_and(interval[0]<=self.spk[i], self.spk[i]<=interval[1])]
+
+  # get number of spikes for each neuron within interval
+  def get_n(self,interval):
+    return np.array([self.get_spike_times(i,interval).size for i in range(len(self.spk))])
 
   # maintains input times but uses nearest positions
   def approx_pos_at_time(self,times):
@@ -257,6 +261,22 @@ class Decoder:
   # expectation
   def ex_n_given_x1d(self,x1d,f,tau):
     return np.array([f[i][x1d]*tau for i in range(len(self.spk))])
+
+  # ==================
+  # === CONVERSION ===
+  # ==================
+
+  # 2D to 1D conversion
+  def prob_X2_to_X1(self,p_x):  
+    prob = np.zeros(self.lim1d)
+    rows,cols = p_x.shape
+    for r in range(rows):
+      for c in range(cols):
+        x1d = self.x_to_x1d(np.array([r,c]))
+        if not np.isnan(x1d) and np.isfinite(x1d):
+          prob[int(x1d)] += p_x[r,c]
+    C = 1/np.sum(prob) if np.sum(prob) > 0 else 0
+    return C*prob
 
   # ======================
   # === TEST FUNCTIONS ===

@@ -29,7 +29,7 @@ spatial_bin_length = 2
 #plt.show()
 
 # eeg (lfp) info
-tetrodes = range(2)
+tetrodes = range(30)
 eegs = np.array([
   sio.loadmat('Con/EEG/coneeg%02d-%1d-%02d.mat' % (day+1,epoch+1,tetrode+1))
   ['eeg'][0][day][0][epoch][0][tetrode][0]['data'][0].flatten() for tetrode in tetrodes
@@ -43,5 +43,5 @@ samprates = np.array([
   ['eeg'][0][day][0][epoch][0][tetrode][0]['samprate'][0][0][0] for tetrode in tetrodes
 ])
 rips,times,sigs,envs = spw_r_detect(eegs,samprates,starttimes)
-print(rips)
-plot_ripples(rips,times,sigs,envs)
+#print(rips)
+#plot_ripples(rips,times,sigs,envs)

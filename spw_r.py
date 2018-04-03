@@ -93,7 +93,7 @@ def spw_r_detect(eegs,samprates,starttimes,min_length=15e-3):
 
   # mean and s.d of each filtered-signal envelopes
   means = np.array([np.mean(env) for env in envs])
-  sd3s  = np.array([np.mean(env)+1*np.std(env) for env in envs])
+  sd3s  = np.array([np.mean(env)+3*np.std(env) for env in envs])
 
   # intervals w/ envelope greater than mean (for longer than min_length)
   larges = np.array([
@@ -102,7 +102,7 @@ def spw_r_detect(eegs,samprates,starttimes,min_length=15e-3):
   ])
   # intervals w/ envelope greater than mean + 3*s.d (for longer than min_length)
   peaks = np.array([
-    keep_intervals_ge_length(vec_to_intervals(vec,time),min_length)
+    keep_intervals_ge_length(vec_to_intervals(vec,time),2*min_length)
       for (samprate,time,vec) in zip(samprates,times,np.array([env > sd3 for (env,sd3) in zip(envs,sd3s)]).astype(int))
   ])
 
