@@ -228,7 +228,8 @@ class Decoder:
 
   # posterior
   def prob_X_given_n(self,n,f,tau):
-    prob = self.p_x*self.prob_n_given_X(n,f,tau)
+    #prob = self.p_x*self.prob_n_given_X(n,f,tau)
+    prob = self.prob_n_given_X(n,f,tau)
     C = 1/np.sum(np.sum(prob)) if np.sum(np.sum(prob)) > 0 else 0
     return C*prob
 

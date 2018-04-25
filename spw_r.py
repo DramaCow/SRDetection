@@ -2,6 +2,7 @@ import numpy as np
 from scipy.signal import hilbert, gaussian
 import matplotlib.pyplot as plt
 from bandpass import butter_bandpass_filter
+from scipy.ndimage.filters import gaussian_filter1d
 
 # convert binary vector to list of intervals (w/ start and end times)
 def vec_to_intervals(vec,time=None):
@@ -62,6 +63,12 @@ def plot_ripples(rips,times,sigs,envs,window_size=750,stride=20,duration=None,de
   sigs_n = np.array([sig/(2*lim) for (sig,lim) in zip(sigs,lims)])                # normalised signal
   envs_n = np.array([env/(2*lim) for (env,lim) in zip(envs,lims)])                # normalised envelope
 
+  print(sum(envs_n[0]>0.25)/len(envs_n[0]))
+  #print(np.argmin(sigs_n[0]),np.argmax(sigs_n[0]))
+  #print(np.argmin(sigs_n[1]),np.argmax(sigs_n[1]))
+  print(np.mean(envs_n[0]))
+  print(np.mean(envs_n[0])+3*np.std(envs_n[0]))
+
   duration = duration if duration is not None else np.min([len(sig) for sig in sigs])
   
   fig = plt.figure()
@@ -75,21 +82,27 @@ def plot_ripples(rips,times,sigs,envs,window_size=750,stride=20,duration=None,de
       for rip in rips_visible:
         ax.axvspan(rip[0], rip[1], alpha=0.3)
   
+      std = 3
       plt.plot(time[start:end],sig[start:end]+j,'k-')
       plt.plot(time[start:end],env[start:end]+j,'r-')
+      plt.plot([time[start],time[end]],[np.mean(env)+std*np.std(env)+j,np.mean(env)+std*np.std(env)+j])
       plt.xlim([time[start],time[end]])
       plt.ylim([-0.5,len(sigs_n)-0.5])
       plt.xlabel('time (s)')
       plt.ylabel('tetrodes')
-    plt.show(block=False) ; plt.pause(delay) ; fig.clf()
+    if delay is None:
+      plt.show(); fig.clf()
+    else:
+      plt.show(block=False) ; plt.pause(delay) ; fig.clf()
 
 def spw_r_detect(eegs,samprates,starttimes,min_length=15e-3):
   # time each sample occurs
   times = np.array([[(1/samprate)*i+starttime for i in range(len(eeg))] for (eeg,samprate,starttime) in zip(eegs,samprates,starttimes)])
 
   # bandpass filtered signals and corresponding envelopes
-  sigs  = np.array([butter_bandpass_filter(eeg,150,250,samprate) for (eeg,samprate) in zip(eegs,samprates)])
-  envs  = np.array([np.abs(hilbert(sig)) for sig in sigs])
+  sigs  = np.array([butter_bandpass_filter(eeg,100,200,samprate) for (eeg,samprate) in zip(eegs,samprates)])
+  envs  = np.array([gaussian_filter1d(np.abs(hilbert(sig)),1) for sig in sigs])
+  #envs  = np.array([np.abs(hilbert(sig)) for sig in sigs])
 
   # mean and s.d of each filtered-signal envelopes
   means = np.array([np.mean(env) for env in envs])
@@ -102,9 +115,10 @@ def spw_r_detect(eegs,samprates,starttimes,min_length=15e-3):
   ])
   # intervals w/ envelope greater than mean + 3*s.d (for longer than min_length)
   peaks = np.array([
-    keep_intervals_ge_length(vec_to_intervals(vec,time),2*min_length)
+    keep_intervals_ge_length(vec_to_intervals(vec,time),min_length)
       for (samprate,time,vec) in zip(samprates,times,np.array([env > sd3 for (env,sd3) in zip(envs,sd3s)]).astype(int))
   ])
+  print([peak.size for peak in peaks])
 
   # keep intervals in largest that contain intervals in peaks
   rips = np.vstack(np.array([keep_intersects(large,peak) for (large,peak) in zip(larges,peaks)]))
