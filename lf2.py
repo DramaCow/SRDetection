@@ -48,23 +48,32 @@ def get_rips(day, epoch):
   #plt.show()
   return rips,times,sigs,envs
 
+def generate_samples(eegs,window_size,num_samples):
+  inds = np.random.randint(low=0, high=len(eegs[0])-window_size, size=(num_samples,))
+  samples = np.array([[eeg[idx:idx+window_size] for eeg in eegs] for idx in inds])
+  means = np.mean(samples,axis=2)
+  return samples,means
+
 day = 0   # int in [0,5]
 epoch = 0 # int in [0,4]
 
 pre_pos, pre_epoch, pre_spk = get_data(day, epoch)
 pre_eegs, pre_starttimes, pre_samprates = get_eegs(day, epoch)
 maze_pos, maze_epoch, maze_spk = get_data(day, epoch+1)
-maze_eegs, maze_starttimes, maze_samprates = get_eegs(day, epoch)
-
-print(pre_epoch)
-print(maze_epoch)
+maze_eegs, maze_starttimes, maze_samprates = get_eegs(day, epoch+1)
+#post_pos, post_epoch, post_spk = get_data(day, epoch+2)
+#post_eegs, post_starttimes, post_samprates = get_eegs(day, epoch+2)
 
 window_size = 32
-pre_training_idx = np.random.randint(low=0, high=len(pre_eegs[0]-window_size), size=(10000,))
-maze_training_idx = np.random.randint(low=0, high=len(maze_eegs[0]-window_size), size=(10000,))
 
-pre_training_samples = np.array([[eeg[idx:idx+window_size] for eeg in pre_eegs] for idx in pre_training_idx])
-maze_training_samples = np.array([[eeg[idx:idx+window_size] for eeg in maze_eegs] for idx in maze_training_idx])
+num_training_samples = 10000
+pre_training_samples, pre_training_means = generate_samples(pre_eegs,window_size,num_training_samples)
+maze_training_samples, maze_training_means = generate_samples(maze_eegs,window_size,num_training_samples)
+X_train = np.concatenate((pre_training_means, maze_training_means), axis=0)
+y_train = np.concatenate((np.zeros(num_training_samples),np.ones(num_training_samples)),axis=0)
 
-pre_training_means = np.mean(pre_training_samples,axis=2)
-maze_training_means = np.mean(maze_training_samples,axis=2)
+num_testing_samples = 1000
+pre_testing_samples, pre_testing_means = generate_samples(pre_eegs,window_size,num_testing_samples)
+maze_testing_samples, maze_testing_means = generate_samples(maze_eegs,window_size,num_testing_samples)
+X_test = np.concatenate((pre_testing_means, maze_testing_means), axis=0)
+y_test = np.concatenate((np.zeros(num_testing_samples),np.ones(num_testing_samples)),axis=0)
