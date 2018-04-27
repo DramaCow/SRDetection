@@ -54,6 +54,12 @@ def generate_samples(eegs,window_size,num_samples):
   means = np.mean(samples,axis=2)
   return samples,means
 
+def get_samples(eegs,window_size,num_samples):
+  inds = np.linspace(start=0, stop=len(eegs[0])-window_size, num=num_samples).astype(int)
+  samples = np.array([[eeg[idx:idx+window_size] for eeg in eegs] for idx in inds])
+  means = np.mean(samples,axis=2)
+  return samples,means
+
 day = 0   # int in [0,5]
 epoch = 0 # int in [0,4]
 
@@ -61,19 +67,41 @@ pre_pos, pre_epoch, pre_spk = get_data(day, epoch)
 pre_eegs, pre_starttimes, pre_samprates = get_eegs(day, epoch)
 maze_pos, maze_epoch, maze_spk = get_data(day, epoch+1)
 maze_eegs, maze_starttimes, maze_samprates = get_eegs(day, epoch+1)
-#post_pos, post_epoch, post_spk = get_data(day, epoch+2)
-#post_eegs, post_starttimes, post_samprates = get_eegs(day, epoch+2)
+post_pos, post_epoch, post_spk = get_data(day, epoch+2)
+post_eegs, post_starttimes, post_samprates = get_eegs(day, epoch+2)
 
-window_size = 32
+window_time = 10e-3
+window_size = int(window_time*1250)
+print('delay =',window_time*1000,'ms')
 
 num_training_samples = 10000
 pre_training_samples, pre_training_means = generate_samples(pre_eegs,window_size,num_training_samples)
 maze_training_samples, maze_training_means = generate_samples(maze_eegs,window_size,num_training_samples)
 X_train = np.concatenate((pre_training_means, maze_training_means), axis=0)
+X_train = X_train/np.mean(X_train,axis=0)
 y_train = np.concatenate((np.zeros(num_training_samples),np.ones(num_training_samples)),axis=0)
 
 num_testing_samples = 1000
 pre_testing_samples, pre_testing_means = generate_samples(pre_eegs,window_size,num_testing_samples)
 maze_testing_samples, maze_testing_means = generate_samples(maze_eegs,window_size,num_testing_samples)
 X_test = np.concatenate((pre_testing_means, maze_testing_means), axis=0)
+X_test = X_test/np.mean(X_test,axis=0)
 y_test = np.concatenate((np.zeros(num_testing_samples),np.ones(num_testing_samples)),axis=0)
+
+num_post_samples = 1000
+post_samples, post_means = get_samples(post_eegs,window_size,num_post_samples)
+X_post = post_means
+X_post = X_post/np.mean(X_post,axis=0)
+plt.plot(post_samples[0][0])
+plt.show()
+
+from sklearn.ensemble import RandomForestClassifier
+from sklearn.datasets import make_classification
+
+clf = RandomForestClassifier(n_estimators=20, max_depth=32)
+clf.fit(X_train, y_train)
+#accuracy = (num_testing_samples-sum(clf.predict(X_test)-y_test))/num_testing_samples
+#print(accuracy)
+
+replay = clf.predict(X_post)
+print(replay)
