@@ -8,18 +8,51 @@ from math import floor, ceil
 
 spatial_bin_length = 2
 
-def construct_mat(spk, interval, dt):
-  duration = interval[1]-interval[0]
+def raster(event_times_list, y_labels=None, **kwargs):
+  """
+  Creates a raster plot
+  Parameters
+  ----------
+  event_times_list : iterable
+                     a list of event time iterables
+  color : string
+          color of vlines
+  Returns
+  -------
+  ax : an axis containing the raster plot
+  """
+  ax = plt.gca()
+  for i, trial in enumerate(event_times_list):
+    plt.vlines(trial, i-0.475, i+0.475, **kwargs)
+  plt.ylim(-0.5, len(event_times_list) - 0.5)
+  if y_labels == None:
+    plt.yticks(range(0, len(event_times_list)))
+  else:
+    plt.yticks(y_labels)
+  return ax
+
+def display_raster(M, dt):
+  N, T = M.shape[0], M.shape[1]
+  fig = plt.figure()
+  spikes = [[t*dt + dt/2 for t in range(T) if M[n][t] == 1] for n in range(N)]
+  ax = raster(spikes)
+  plt.title('Spike Train')
+  plt.xlabel('Time (s)')
+  plt.ylabel('Neuron')
+  plt.show()
+  #plt.savefig(filename+'.png')
+
+def construct_mat(spk, interval, duration, dt):
   spk_int = np.array([tetrode[(interval[0]<=tetrode)&(tetrode<=interval[1])]-interval[0] for tetrode in spk])
-  N = spk_int.size
+  N = spk.size
   T = ceil(duration/dt) # ceil ensures there is always enough bins
   M = np.zeros((N, T), dtype='uint8')
   for j, tetrode in enumerate(spk_int):
     for spike_time in tetrode:
       bin = floor(spike_time/dt)
       M[j][bin] = 1
-  which_neurons_spike = np.max(M, axis=1)
-  print(which_neurons_spike)
+  #which_neurons_spike = np.max(M, axis=1)
+  #print(which_neurons_spike)
   return M
 
 def per_second_fr(M, dt):
@@ -32,6 +65,15 @@ def per_second_fr(M, dt):
     FR[:,i] = np.sum(M[:,i*bw:(i+1)*bw],1)
   FR = FR/1
   return FR
+
+def shifting(bitlist):
+  out = 0
+  for bit in bitlist:
+    out = (out << 1) | bit
+  return out
+
+def binary(decimal):
+  return np.array([int(x) for x in bin(decimal)[2:]])
 
 def get_data(day, epoch):
   # pos info
@@ -57,8 +99,43 @@ def get_data(day, epoch):
 
   return pos, epoch_interval, spk
 
+def ind_model(M):
+  N,T = M.shape
+  count = np.sum(M,axis=1)
+  p = count/T
+  return p
+
+def prob_x_given_ind(x,params):
+  on  = x
+  off = 1-x
+  prob = np.prod(params[on])*np.prod(1-params[off])
+  return prob
+
+def generate_samples(spk,interval,window_size,num_samples):
+  times = np.random.uniform(interval[0]+window_size, interval[1], size=(num_samples,))
+  Ms = np.array([construct_mat(spk, (time-window_size,time), window_size, 10e-3) for time in times])
+  return Ms
+
 day = 0   # int in [0,5]
 epoch = 0 # int in [0,4]
 
+dt = 10e-3
+duration = 3000
 pos,maze_epoch,spk = get_data(day, epoch)
-print(construct_mat(spk, (maze_epoch[0],maze_epoch[0]+10), 10e-3))
+M = construct_mat(spk, (maze_epoch[0],maze_epoch[0]+duration), duration, dt)
+#display_raster(M,dt)
+
+params = ind_model(M)
+
+samples = generate_samples(spk,maze_epoch,100e-3,3)
+print(samples)
+
+'''
+V = np.array([shifting(M[:,col]) for col in range(M.shape[1])])
+count = np.zeros(2**M.shape[0])
+for v in V:
+  count[v] += 1
+p = count/sum(count)
+plt.plot(p)
+plt.show()
+'''
