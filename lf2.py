@@ -72,7 +72,7 @@ post_eegs, post_starttimes, post_samprates = get_eegs(day, epoch+2)
 
 window_time = 10e-3
 window_size = int(window_time*1250)
-print('delay =',window_time*1000,'ms')
+#print('delay =',window_time*1000,'ms')
 
 num_training_samples = 10000
 pre_training_samples, pre_training_means = generate_samples(pre_eegs,window_size,num_training_samples)
@@ -92,15 +92,16 @@ num_post_samples = 1000
 post_samples, post_means = get_samples(post_eegs,window_size,num_post_samples)
 X_post = post_means
 X_post = X_post/np.mean(X_post,axis=0)
-plt.plot(post_samples[0][0])
-plt.show()
+#plt.plot(post_samples[0][0])
+#plt.show()
 
 from sklearn.ensemble import RandomForestClassifier
 from sklearn.datasets import make_classification
 
 clf = RandomForestClassifier(n_estimators=20, max_depth=32)
 clf.fit(X_train, y_train)
-accuracy = (num_testing_samples-sum(clf.predict(X_test)-y_test))/num_testing_samples
+errors = sum(np.abs(clf.predict(X_test)-y_test))
+accuracy = (num_testing_samples-errors)/num_testing_samples
 print(accuracy)
 
 #replay = clf.predict(X_post)

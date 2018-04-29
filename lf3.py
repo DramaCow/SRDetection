@@ -182,9 +182,9 @@ from sklearn.datasets import make_classification
 
 clf = RandomForestClassifier(n_estimators=20, max_depth=32)
 clf.fit(X_train, y_train)
-accuracy = (num_testing_samples-sum(clf.predict(X_test)-y_test))/num_testing_samples
+errors = sum(np.abs(clf.predict(X_test)-y_test))
+accuracy = (num_testing_samples-errors)/num_testing_samples
 print(accuracy)
 
 #replay = clf.predict(X_post)
 #print(replay)
-
