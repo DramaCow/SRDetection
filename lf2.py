@@ -98,10 +98,10 @@ X_post = X_post/np.mean(X_post,axis=0)
 from sklearn.ensemble import RandomForestClassifier
 from sklearn.datasets import make_classification
 
-clf = RandomForestClassifier(n_estimators=20, max_depth=32)
+clf = RandomForestClassifier(n_estimators=20, max_depth=16)
 clf.fit(X_train, y_train)
 errors = sum(np.abs(clf.predict(X_test)-y_test))
-accuracy = (num_testing_samples-errors)/num_testing_samples
+accuracy = (len(y_test)-errors)/len(y_test)
 print(accuracy)
 
 #replay = clf.predict(X_post)
