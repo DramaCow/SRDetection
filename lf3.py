@@ -116,26 +116,75 @@ def generate_samples(spk,interval,window_size,num_samples):
   Ms = np.array([construct_mat(spk, (time-window_size,time), window_size, 10e-3) for time in times])
   return Ms
 
-day = 0   # int in [0,5]
+day   = 0 # int in [0,5]
 epoch = 0 # int in [0,4]
 
+_,epoch_pre, spk_pre  = get_data(day, epoch)
+_,epoch_maze,spk_maze = get_data(day, epoch+1)
+_,epoch_post,spk_post = get_data(day, epoch+2)
+
 dt = 10e-3
-duration = 3000
-pos,maze_epoch,spk = get_data(day, epoch)
-M = construct_mat(spk, (maze_epoch[0],maze_epoch[0]+duration), duration, dt)
-#display_raster(M,dt)
 
-params = ind_model(M)
+M_pre = construct_mat(
+  spk_pre, (epoch_pre[0],epoch_pre[1]),
+  epoch_pre[1]-epoch_pre[0], dt)
+M_maze = construct_mat(
+  spk_maze, (epoch_maze[0],epoch_maze[1]),
+  epoch_maze[1]-epoch_maze[0], dt)
 
-samples = generate_samples(spk,maze_epoch,100e-3,3)
-print(samples)
+# are there any disparities in the matrices?
+#truth = [all(r1 == r2) for (r1,r2) in zip(M_pre,M_maze)]
+#print(all(truth))
+#display_raster(M_pre,dt)
+#display_raster(M_maze,dt)
 
-'''
-V = np.array([shifting(M[:,col]) for col in range(M.shape[1])])
-count = np.zeros(2**M.shape[0])
-for v in V:
-  count[v] += 1
-p = count/sum(count)
-plt.plot(p)
-plt.show()
-'''
+ind_params_pre  = ind_model(M_pre )
+ind_params_maze = ind_model(M_maze)
+
+num_training_samples = 10000
+samples_pre  = generate_samples(spk_pre,epoch_pre ,100e-3,num_training_samples)
+samples_maze = generate_samples(spk_maze,epoch_maze,100e-3,num_training_samples)
+features_pre = np.log(np.array([
+  [prob_x_given_ind(sample[:,col],ind_params_pre)/prob_x_given_ind(sample[:,col],ind_params_maze)
+  for col in range(sample.shape[1])] for sample in samples_pre
+]))
+features_maze = np.log(np.array([
+  [prob_x_given_ind(sample[:,col],ind_params_pre)/prob_x_given_ind(sample[:,col],ind_params_maze)
+  for col in range(sample.shape[1])] for sample in samples_maze
+]))
+X_train = np.concatenate((features_pre, features_maze), axis=0)
+y_train = np.concatenate((np.zeros(num_training_samples),np.ones(num_training_samples)),axis=0)
+
+num_testing_samples = 1000
+samples_pre  = generate_samples(spk_pre,epoch_pre ,100e-3,num_testing_samples)
+samples_maze = generate_samples(spk_maze,epoch_maze,100e-3,num_testing_samples)
+features_pre = np.log(np.array([
+  [prob_x_given_ind(sample[:,col],ind_params_pre)/prob_x_given_ind(sample[:,col],ind_params_maze)
+  for col in range(sample.shape[1])] for sample in samples_pre
+]))
+features_maze = np.log(np.array([
+  [prob_x_given_ind(sample[:,col],ind_params_pre)/prob_x_given_ind(sample[:,col],ind_params_maze)
+  for col in range(sample.shape[1])] for sample in samples_maze
+]))
+X_test = np.concatenate((features_pre, features_maze), axis=0)
+y_test = np.concatenate((np.zeros(num_testing_samples),np.ones(num_testing_samples)),axis=0)
+
+num_post_samples = 1000
+samples_post  = generate_samples(spk_post,epoch_post,100e-3,num_post_samples)
+features_post = np.log(np.array([
+  [prob_x_given_ind(sample[:,col],ind_params_pre)/prob_x_given_ind(sample[:,col],ind_params_maze)
+  for col in range(sample.shape[1])] for sample in samples_post
+]))
+X_post = features_post
+
+from sklearn.ensemble import RandomForestClassifier
+from sklearn.datasets import make_classification
+
+clf = RandomForestClassifier(n_estimators=20, max_depth=32)
+clf.fit(X_train, y_train)
+accuracy = (num_testing_samples-sum(clf.predict(X_test)-y_test))/num_testing_samples
+print(accuracy)
+
+#replay = clf.predict(X_post)
+#print(replay)
+
