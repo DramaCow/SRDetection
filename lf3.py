@@ -141,40 +141,33 @@ M_maze = construct_mat(
 ind_params_pre  = ind_model(M_pre )
 ind_params_maze = ind_model(M_maze)
 
+def get_features(samples):
+  ind = np.log(np.array([
+    [prob_x_given_ind(sample[:,col],ind_params_pre)/prob_x_given_ind(sample[:,col],ind_params_maze)
+    for col in range(sample.shape[1])] for sample in samples
+  ]))
+  features = ind
+  return features
+
 num_training_samples = 10000
 samples_pre  = generate_samples(spk_pre,epoch_pre ,100e-3,num_training_samples)
 samples_maze = generate_samples(spk_maze,epoch_maze,100e-3,num_training_samples)
-features_pre = np.log(np.array([
-  [prob_x_given_ind(sample[:,col],ind_params_pre)/prob_x_given_ind(sample[:,col],ind_params_maze)
-  for col in range(sample.shape[1])] for sample in samples_pre
-]))
-features_maze = np.log(np.array([
-  [prob_x_given_ind(sample[:,col],ind_params_pre)/prob_x_given_ind(sample[:,col],ind_params_maze)
-  for col in range(sample.shape[1])] for sample in samples_maze
-]))
+features_pre  = get_features(samples_pre)
+features_maze = get_features(samples_maze)
 X_train = np.concatenate((features_pre, features_maze), axis=0)
 y_train = np.concatenate((np.zeros(num_training_samples),np.ones(num_training_samples)),axis=0)
 
 num_testing_samples = 1000
 samples_pre  = generate_samples(spk_pre,epoch_pre ,100e-3,num_testing_samples)
 samples_maze = generate_samples(spk_maze,epoch_maze,100e-3,num_testing_samples)
-features_pre = np.log(np.array([
-  [prob_x_given_ind(sample[:,col],ind_params_pre)/prob_x_given_ind(sample[:,col],ind_params_maze)
-  for col in range(sample.shape[1])] for sample in samples_pre
-]))
-features_maze = np.log(np.array([
-  [prob_x_given_ind(sample[:,col],ind_params_pre)/prob_x_given_ind(sample[:,col],ind_params_maze)
-  for col in range(sample.shape[1])] for sample in samples_maze
-]))
+features_pre  = get_features(samples_pre)
+features_maze = get_features(samples_maze)
 X_test = np.concatenate((features_pre, features_maze), axis=0)
 y_test = np.concatenate((np.zeros(num_testing_samples),np.ones(num_testing_samples)),axis=0)
 
 num_post_samples = 1000
 samples_post  = generate_samples(spk_post,epoch_post,100e-3,num_post_samples)
-features_post = np.log(np.array([
-  [prob_x_given_ind(sample[:,col],ind_params_pre)/prob_x_given_ind(sample[:,col],ind_params_maze)
-  for col in range(sample.shape[1])] for sample in samples_post
-]))
+features_post = get_features(samples_post)
 X_post = features_post
 
 from sklearn.ensemble import RandomForestClassifier
