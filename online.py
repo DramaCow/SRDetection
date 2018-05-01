@@ -68,15 +68,6 @@ def per_second_fr(M, dt):
   FR = FR/1
   return FR
 
-def shifting(bitlist):
-  out = 0
-  for bit in bitlist:
-    out = (out << 1) | bit
-  return out
-
-def binary(decimal):
-  return np.array([int(x) for x in bin(decimal)[2:]])
-
 def get_data(day, epoch):
   # pos info
   pos_mat = sio.loadmat('Con/conpos%02d.mat' % (day+1))
@@ -101,7 +92,7 @@ def get_data(day, epoch):
 
   return pos, epoch_interval, spk
 
-def generate_samples(spk,interval,window_size,num_samples):
+def generate_mua_samples(spk,interval,window_size,num_samples):
   times = np.random.uniform(interval[0]+window_size, interval[1], size=(num_samples,))
   Ms = np.array([construct_mat(spk, (time-window_size,time), window_size, 10e-3) for time in times])
   return Ms
@@ -122,18 +113,12 @@ M_maze = construct_mat(
   spk_maze, (epoch_maze[0],epoch_maze[1]),
   epoch_maze[1]-epoch_maze[0], dt)
 
-# are there any disparities in the matrices?
-#truth = [all(r1 == r2) for (r1,r2) in zip(M_pre,M_maze)]
-#print(all(truth))
-#display_raster(M_pre,dt)
-#display_raster(M_maze,dt)
-
 ind_params_pre  = ind_model(M_pre )
 ind_params_maze = ind_model(M_maze)
 poptrack_params_pre  = poptrack(M_pre )
 poptrack_params_maze = poptrack(M_maze)
 
-def get_features(samples):
+def get_mua_features(samples):
   ind_feat = np.log(np.array([
     [prob_x_given_ind(sample[:,col],ind_params_pre)/prob_x_given_ind(sample[:,col],ind_params_maze)
     for col in range(sample.shape[1])] for sample in samples
@@ -148,24 +133,24 @@ def get_features(samples):
   return features
 
 num_training_samples = 10000
-samples_pre  = generate_samples(spk_pre,epoch_pre ,100e-3,num_training_samples)
-samples_maze = generate_samples(spk_maze,epoch_maze,100e-3,num_training_samples)
-features_pre  = get_features(samples_pre)
-features_maze = get_features(samples_maze)
+samples_pre  = generate_mua_samples(spk_pre,epoch_pre ,100e-3,num_training_samples)
+samples_maze = generate_mua_samples(spk_maze,epoch_maze,100e-3,num_training_samples)
+features_pre  = get_mua_features(samples_pre)
+features_maze = get_mua_features(samples_maze)
 X_train = np.concatenate((features_pre, features_maze), axis=0)
 y_train = np.concatenate((np.zeros(num_training_samples),np.ones(num_training_samples)),axis=0)
 
 num_testing_samples = 1000
-samples_pre  = generate_samples(spk_pre,epoch_pre ,100e-3,num_testing_samples)
-samples_maze = generate_samples(spk_maze,epoch_maze,100e-3,num_testing_samples)
-features_pre  = get_features(samples_pre)
-features_maze = get_features(samples_maze)
+samples_pre  = generate_mua_samples(spk_pre,epoch_pre ,100e-3,num_testing_samples)
+samples_maze = generate_mua_samples(spk_maze,epoch_maze,100e-3,num_testing_samples)
+features_pre  = get_mua_features(samples_pre)
+features_maze = get_mua_features(samples_maze)
 X_test = np.concatenate((features_pre, features_maze), axis=0)
 y_test = np.concatenate((np.zeros(num_testing_samples),np.ones(num_testing_samples)),axis=0)
 
 num_post_samples = 1000
-samples_post  = generate_samples(spk_post,epoch_post,100e-3,num_post_samples)
-features_post = get_features(samples_post)
+samples_post  = generate_mua_samples(spk_post,epoch_post,100e-3,num_post_samples)
+features_post = get_mua_features(samples_post)
 X_post = features_post
 
 from sklearn.ensemble import RandomForestClassifier
