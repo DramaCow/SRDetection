@@ -68,7 +68,7 @@ def per_second_fr(M, dt):
   FR = FR/1
   return FR
 
-def get_data(day, epoch):
+def get_mua_data(day, epoch):
   # pos info
   pos_mat = sio.loadmat('Con/conpos%02d.mat' % (day+1))
   pos_info = pos_mat['pos'][0][day][0][epoch][0]['data'][0]
@@ -100,9 +100,9 @@ def generate_mua_samples(spk,interval,window_size,num_samples):
 day   = 0 # int in [0,5]
 epoch = 0 # int in [0,4]
 
-_,epoch_pre, spk_pre  = get_data(day, epoch)
-_,epoch_maze,spk_maze = get_data(day, epoch+1)
-_,epoch_post,spk_post = get_data(day, epoch+2)
+_,epoch_pre, spk_pre  = get_mua_data(day, epoch)
+_,epoch_maze,spk_maze = get_mua_data(day, epoch+1)
+_,epoch_post,spk_post = get_mua_data(day, epoch+2)
 
 dt = 10e-3
 

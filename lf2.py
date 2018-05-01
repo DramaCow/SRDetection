@@ -7,7 +7,7 @@ from spw_r import spw_r_detect, plot_ripples
 
 spatial_bin_length = 2
 
-def get_data(day, epoch):
+def get_lfp_data(day, epoch):
   # pos info
   pos_mat = sio.loadmat('Con/conpos%02d.mat' % (day+1))
   pos_info = pos_mat['pos'][0][day][0][epoch][0]['data'][0]
@@ -16,14 +16,7 @@ def get_data(day, epoch):
   # epoch info
   epoch_interval = np.array([min(pos_info[:,0]),max(pos_info[:,0])])
   
-  # spike info
-  spk_mat = sio.loadmat('Con/conspikes%02d.mat' % (day+1))
-  spk_info = np.array([units[0]['data'][0] for tetrode in spk_mat['spikes'][0][day][0][epoch][0] for units in tetrode[0] if units.size > 0])
-  spk = np.array([unit[:,0] for unit in spk_info if unit.size > 0])
-
-  return pos, epoch_interval, spk
-
-def get_eegs(day, epoch):
+  # tetrode info
   tetrodes = range(30)
   eegs = np.array([
     sio.loadmat('Con/EEG/coneeg%02d-%1d-%02d.mat' % (day+1,epoch+1,tetrode+1))
@@ -37,16 +30,8 @@ def get_eegs(day, epoch):
     sio.loadmat('Con/EEG/coneeg%02d-%1d-%02d.mat' % (day+1,epoch+1,tetrode+1))
     ['eeg'][0][day][0][epoch][0][tetrode][0]['samprate'][0][0][0] for tetrode in tetrodes
   ])
-  return eegs, starttimes, samprates
 
-def get_rips(day, epoch):
-  # eeg (lfp) info
-  eegs, starttimes, samprates = get_eegs(day, epoch)
-  rips,times,sigs,envs = spw_r_detect(eegs,samprates,starttimes)
-  #plot_ripples(rips,times,sigs,envs,stride=50,delay=0.5)
-  #plot_ripples(rips,times,sigs,envs,window_size=900000,stride=50,delay=None)
-  #plt.show()
-  return rips,times,sigs,envs
+  return pos, epoch_interval, eegs, starttimes, samprates
 
 def generate_lfp_samples(eegs,window_size,num_samples):
   inds = np.random.randint(low=0, high=len(eegs[0])-window_size, size=(num_samples,))
@@ -66,12 +51,9 @@ def get_lfp_features(samples):
 day = 0   # int in [0,5]
 epoch = 0 # int in [0,4]
 
-pre_pos, pre_epoch, pre_spk = get_data(day, epoch)
-pre_eegs, pre_starttimes, pre_samprates = get_eegs(day, epoch)
-maze_pos, maze_epoch, maze_spk = get_data(day, epoch+1)
-maze_eegs, maze_starttimes, maze_samprates = get_eegs(day, epoch+1)
-post_pos, post_epoch, post_spk = get_data(day, epoch+2)
-post_eegs, post_starttimes, post_samprates = get_eegs(day, epoch+2)
+_, pre_epoch, pre_eegs, pre_starttimes, pre_samprates = get_lfp_data(day, epoch)
+_, maze_epoch, maze_eegs, maze_starttimes, maze_samprates = get_lfp_data(day, epoch+1)
+_, post_epoch, post_eegs, post_starttimes, post_samprates = get_lfp_data(day, epoch+2)
 
 window_time = 10e-3
 window_size = int(window_time*1250)
