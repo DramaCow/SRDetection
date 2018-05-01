@@ -5,6 +5,7 @@ from scipy.signal import hilbert, gaussian
 import matplotlib.pyplot as plt
 from spw_r import spw_r_detect, plot_ripples
 from math import floor, ceil
+from poptrack import *
 
 spatial_bin_length = 2
 
@@ -140,13 +141,21 @@ M_maze = construct_mat(
 
 ind_params_pre  = ind_model(M_pre )
 ind_params_maze = ind_model(M_maze)
+poptrack_params_pre  = poptrack(M_pre )
+poptrack_params_maze = poptrack(M_maze)
 
 def get_features(samples):
-  ind = np.log(np.array([
+  ind_feat = np.log(np.array([
     [prob_x_given_ind(sample[:,col],ind_params_pre)/prob_x_given_ind(sample[:,col],ind_params_maze)
     for col in range(sample.shape[1])] for sample in samples
   ]))
-  features = ind
+  poptrack_feat = np.log(np.array([
+    [prob_x_given_poptrack(sample[:,col],poptrack_params_pre)/prob_x_given_poptrack(sample[:,col],poptrack_params_maze)
+    for col in range(sample.shape[1])] for sample in samples
+  ]))
+  rowsum_feat = np.array([np.sum(sample,axis=0) for sample in samples])
+  colsum_feat = np.array([np.sum(sample,axis=1) for sample in samples])
+  features = np.concatenate((ind_feat,poptrack_feat,rowsum_feat,colsum_feat),axis=1)
   return features
 
 num_training_samples = 10000
