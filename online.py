@@ -38,14 +38,13 @@ def get_lfp_data(day, epoch):
 
   return pos, epoch_interval, eegs, starttimes, samprates
 
-def generate_lfp_samples(eegs,window_size,num_samples):
-  inds = np.random.randint(low=0, high=len(eegs[0])-window_size, size=(num_samples,))
+def get_lfp_samples(eegs,window_size,inds):
   samples = np.array([[eeg[idx:idx+window_size] for eeg in eegs] for idx in inds])
   return samples
 
-def get_lfp_samples(eegs,window_size,num_samples):
-  inds = np.linspace(start=0, stop=len(eegs[0])-window_size, num=num_samples).astype(int)
-  samples = np.array([[eeg[idx:idx+window_size] for eeg in eegs] for idx in inds])
+def generate_lfp_samples(eegs,window_size,num_samples):
+  inds = np.random.randint(low=0, high=len(eegs[0])-window_size, size=(num_samples,))
+  samples = get_lfp_samples(eegs,window_size,inds)
   return samples
 
 def get_lfp_features(samples):
@@ -139,9 +138,13 @@ def get_mua_data(day, epoch):
 
   return pos, epoch_interval, spk
 
+def get_mua_samples(spk,window_size,times):
+  Ms = np.array([construct_mat(spk, (time-window_size,time), window_size, 10e-3) for time in times])
+  return Ms
+
 def generate_mua_samples(spk,interval,window_size,num_samples):
   times = np.random.uniform(interval[0]+window_size, interval[1], size=(num_samples,))
-  Ms = np.array([construct_mat(spk, (time-window_size,time), window_size, 10e-3) for time in times])
+  Ms = get_mua_samples(spk,window_size,times)
   return Ms
 
 def get_mua_features(samples):
@@ -187,7 +190,7 @@ if 1:
   y_test = np.concatenate((np.zeros(num_testing_samples),np.ones(num_testing_samples)),axis=0)
   
   num_samples_post = 1000
-  samples_post = get_lfp_samples(post_eegs,window_size,num_samples_post)
+  samples_post = generate_lfp_samples(post_eegs,window_size,num_samples_post)
   features_post = get_lfp_features(samples_post)
   X_post = features_post
   
