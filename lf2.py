@@ -5,8 +5,6 @@ from scipy.signal import hilbert, gaussian
 import matplotlib.pyplot as plt
 from spw_r import spw_r_detect, plot_ripples
 
-spatial_bin_length = 2
-
 def get_lfp_data(day, epoch):
   # pos info
   pos_mat = sio.loadmat('Con/conpos%02d.mat' % (day+1))

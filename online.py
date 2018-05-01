@@ -8,7 +8,54 @@ from math import floor, ceil
 from poptrack import *
 from ind_model import *
 
-spatial_bin_length = 2
+# =====================
+# === LFP FUNCTIONS ===
+# =====================
+
+def get_lfp_data(day, epoch):
+  # pos info
+  pos_mat = sio.loadmat('Con/conpos%02d.mat' % (day+1))
+  pos_info = pos_mat['pos'][0][day][0][epoch][0]['data'][0]
+  pos = pos_info[:,0:3]
+  
+  # epoch info
+  epoch_interval = np.array([min(pos_info[:,0]),max(pos_info[:,0])])
+  
+  # tetrode info
+  tetrodes = range(30)
+  eegs = np.array([
+    sio.loadmat('Con/EEG/coneeg%02d-%1d-%02d.mat' % (day+1,epoch+1,tetrode+1))
+    ['eeg'][0][day][0][epoch][0][tetrode][0]['data'][0].flatten() for tetrode in tetrodes
+  ])
+  starttimes = np.array([
+    sio.loadmat('Con/EEG/coneeg%02d-%1d-%02d.mat' % (day+1,epoch+1,tetrode+1))
+    ['eeg'][0][day][0][epoch][0][tetrode][0]['starttime'][0][0][0] for tetrode in tetrodes
+  ])
+  samprates = np.array([
+    sio.loadmat('Con/EEG/coneeg%02d-%1d-%02d.mat' % (day+1,epoch+1,tetrode+1))
+    ['eeg'][0][day][0][epoch][0][tetrode][0]['samprate'][0][0][0] for tetrode in tetrodes
+  ])
+
+  return pos, epoch_interval, eegs, starttimes, samprates
+
+def generate_lfp_samples(eegs,window_size,num_samples):
+  inds = np.random.randint(low=0, high=len(eegs[0])-window_size, size=(num_samples,))
+  samples = np.array([[eeg[idx:idx+window_size] for eeg in eegs] for idx in inds])
+  return samples
+
+def get_lfp_samples(eegs,window_size,num_samples):
+  inds = np.linspace(start=0, stop=len(eegs[0])-window_size, num=num_samples).astype(int)
+  samples = np.array([[eeg[idx:idx+window_size] for eeg in eegs] for idx in inds])
+  return samples
+
+def get_lfp_features(samples):
+  means = np.mean(samples,axis=2)
+  #return means/np.mean(means,axis=0)
+  return means
+
+# =====================
+# === MUA FUNCTIONS ===
+# =====================
 
 def raster(event_times_list, y_labels=None, **kwargs):
   """
@@ -97,6 +144,20 @@ def generate_mua_samples(spk,interval,window_size,num_samples):
   Ms = np.array([construct_mat(spk, (time-window_size,time), window_size, 10e-3) for time in times])
   return Ms
 
+def get_mua_features(samples):
+  ind_feat = np.log(np.array([
+    [prob_x_given_ind(sample[:,col],ind_params_pre)/prob_x_given_ind(sample[:,col],ind_params_maze)
+    for col in range(sample.shape[1])] for sample in samples
+  ]))
+  poptrack_feat = np.log(np.array([
+    [prob_x_given_poptrack(sample[:,col],poptrack_params_pre)/prob_x_given_poptrack(sample[:,col],poptrack_params_maze)
+    for col in range(sample.shape[1])] for sample in samples
+  ]))
+  rowsum_feat = np.array([np.sum(sample,axis=0) for sample in samples])
+  colsum_feat = np.array([np.sum(sample,axis=1) for sample in samples])
+  features = np.concatenate((ind_feat,poptrack_feat,rowsum_feat,colsum_feat),axis=1)
+  return features
+
 day   = 0 # int in [0,5]
 epoch = 0 # int in [0,4]
 
@@ -117,20 +178,6 @@ ind_params_pre  = ind_model(M_pre )
 ind_params_maze = ind_model(M_maze)
 poptrack_params_pre  = poptrack(M_pre )
 poptrack_params_maze = poptrack(M_maze)
-
-def get_mua_features(samples):
-  ind_feat = np.log(np.array([
-    [prob_x_given_ind(sample[:,col],ind_params_pre)/prob_x_given_ind(sample[:,col],ind_params_maze)
-    for col in range(sample.shape[1])] for sample in samples
-  ]))
-  poptrack_feat = np.log(np.array([
-    [prob_x_given_poptrack(sample[:,col],poptrack_params_pre)/prob_x_given_poptrack(sample[:,col],poptrack_params_maze)
-    for col in range(sample.shape[1])] for sample in samples
-  ]))
-  rowsum_feat = np.array([np.sum(sample,axis=0) for sample in samples])
-  colsum_feat = np.array([np.sum(sample,axis=1) for sample in samples])
-  features = np.concatenate((ind_feat,poptrack_feat,rowsum_feat,colsum_feat),axis=1)
-  return features
 
 num_training_samples = 10000
 samples_pre  = generate_mua_samples(spk_pre,epoch_pre ,100e-3,num_training_samples)
