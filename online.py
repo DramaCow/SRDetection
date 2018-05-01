@@ -158,56 +158,103 @@ def get_mua_features(samples):
   features = np.concatenate((ind_feat,poptrack_feat,rowsum_feat,colsum_feat),axis=1)
   return features
 
-day   = 0 # int in [0,5]
-epoch = 0 # int in [0,4]
+# === LFP ===
+if 1:
+  day = 0   # int in [0,5]
+  epoch = 0 # int in [0,4]
+  
+  _, pre_epoch, pre_eegs, pre_starttimes, pre_samprates = get_lfp_data(day, epoch)
+  _, maze_epoch, maze_eegs, maze_starttimes, maze_samprates = get_lfp_data(day, epoch+1)
+  _, post_epoch, post_eegs, post_starttimes, post_samprates = get_lfp_data(day, epoch+2)
+  
+  window_time = 10e-3
+  window_size = int(window_time*1250)
+  
+  num_training_samples = 10000
+  samples_pre  = generate_lfp_samples(pre_eegs,window_size,num_training_samples)
+  samples_maze = generate_lfp_samples(maze_eegs,window_size,num_training_samples)
+  features_pre  = get_lfp_features(samples_pre)
+  features_maze = get_lfp_features(samples_maze)
+  X_train = np.concatenate((features_pre, features_maze), axis=0)
+  y_train = np.concatenate((np.zeros(num_training_samples),np.ones(num_training_samples)),axis=0)
+  
+  num_testing_samples = 1000
+  samples_pre  = generate_lfp_samples(pre_eegs,window_size,num_testing_samples)
+  samples_maze = generate_lfp_samples(maze_eegs,window_size,num_testing_samples)
+  features_pre  = get_lfp_features(samples_pre)
+  features_maze = get_lfp_features(samples_maze)
+  X_test = np.concatenate((features_pre, features_maze), axis=0)
+  y_test = np.concatenate((np.zeros(num_testing_samples),np.ones(num_testing_samples)),axis=0)
+  
+  num_samples_post = 1000
+  samples_post = get_lfp_samples(post_eegs,window_size,num_samples_post)
+  features_post = get_lfp_features(samples_post)
+  X_post = features_post
+  
+  from sklearn.ensemble import RandomForestClassifier
+  from sklearn.datasets import make_classification
+  
+  clf = RandomForestClassifier(n_estimators=20, max_depth=16)
+  clf.fit(X_train, y_train)
+  errors = sum(np.abs(clf.predict(X_test)-y_test))
+  accuracy = (len(y_test)-errors)/len(y_test)
+  print(accuracy)
+  
+  #replay = clf.predict(X_post)
+  #print(replay)
 
-_,epoch_pre, spk_pre  = get_mua_data(day, epoch)
-_,epoch_maze,spk_maze = get_mua_data(day, epoch+1)
-_,epoch_post,spk_post = get_mua_data(day, epoch+2)
-
-dt = 10e-3
-
-M_pre = construct_mat(
-  spk_pre, (epoch_pre[0],epoch_pre[1]),
-  epoch_pre[1]-epoch_pre[0], dt)
-M_maze = construct_mat(
-  spk_maze, (epoch_maze[0],epoch_maze[1]),
-  epoch_maze[1]-epoch_maze[0], dt)
-
-ind_params_pre  = ind_model(M_pre )
-ind_params_maze = ind_model(M_maze)
-poptrack_params_pre  = poptrack(M_pre )
-poptrack_params_maze = poptrack(M_maze)
-
-num_training_samples = 10000
-samples_pre  = generate_mua_samples(spk_pre,epoch_pre ,100e-3,num_training_samples)
-samples_maze = generate_mua_samples(spk_maze,epoch_maze,100e-3,num_training_samples)
-features_pre  = get_mua_features(samples_pre)
-features_maze = get_mua_features(samples_maze)
-X_train = np.concatenate((features_pre, features_maze), axis=0)
-y_train = np.concatenate((np.zeros(num_training_samples),np.ones(num_training_samples)),axis=0)
-
-num_testing_samples = 1000
-samples_pre  = generate_mua_samples(spk_pre,epoch_pre ,100e-3,num_testing_samples)
-samples_maze = generate_mua_samples(spk_maze,epoch_maze,100e-3,num_testing_samples)
-features_pre  = get_mua_features(samples_pre)
-features_maze = get_mua_features(samples_maze)
-X_test = np.concatenate((features_pre, features_maze), axis=0)
-y_test = np.concatenate((np.zeros(num_testing_samples),np.ones(num_testing_samples)),axis=0)
-
-num_post_samples = 1000
-samples_post  = generate_mua_samples(spk_post,epoch_post,100e-3,num_post_samples)
-features_post = get_mua_features(samples_post)
-X_post = features_post
-
-from sklearn.ensemble import RandomForestClassifier
-from sklearn.datasets import make_classification
-
-clf = RandomForestClassifier(n_estimators=20, max_depth=32)
-clf.fit(X_train, y_train)
-errors = sum(np.abs(clf.predict(X_test)-y_test))
-accuracy = (len(y_test)-errors)/len(y_test)
-print(accuracy)
-
-#replay = clf.predict(X_post)
-#print(replay)
+# === MUA ===
+if 1:
+  day   = 0 # int in [0,5]
+  epoch = 0 # int in [0,4]
+  
+  _,epoch_pre, spk_pre  = get_mua_data(day, epoch)
+  _,epoch_maze,spk_maze = get_mua_data(day, epoch+1)
+  _,epoch_post,spk_post = get_mua_data(day, epoch+2)
+  
+  dt = 10e-3
+  
+  M_pre = construct_mat(
+    spk_pre, (epoch_pre[0],epoch_pre[1]),
+    epoch_pre[1]-epoch_pre[0], dt)
+  M_maze = construct_mat(
+    spk_maze, (epoch_maze[0],epoch_maze[1]),
+    epoch_maze[1]-epoch_maze[0], dt)
+  
+  ind_params_pre  = ind_model(M_pre )
+  ind_params_maze = ind_model(M_maze)
+  poptrack_params_pre  = poptrack(M_pre )
+  poptrack_params_maze = poptrack(M_maze)
+  
+  num_training_samples = 10000
+  samples_pre  = generate_mua_samples(spk_pre,epoch_pre ,100e-3,num_training_samples)
+  samples_maze = generate_mua_samples(spk_maze,epoch_maze,100e-3,num_training_samples)
+  features_pre  = get_mua_features(samples_pre)
+  features_maze = get_mua_features(samples_maze)
+  X_train = np.concatenate((features_pre, features_maze), axis=0)
+  y_train = np.concatenate((np.zeros(num_training_samples),np.ones(num_training_samples)),axis=0)
+  
+  num_testing_samples = 1000
+  samples_pre  = generate_mua_samples(spk_pre,epoch_pre ,100e-3,num_testing_samples)
+  samples_maze = generate_mua_samples(spk_maze,epoch_maze,100e-3,num_testing_samples)
+  features_pre  = get_mua_features(samples_pre)
+  features_maze = get_mua_features(samples_maze)
+  X_test = np.concatenate((features_pre, features_maze), axis=0)
+  y_test = np.concatenate((np.zeros(num_testing_samples),np.ones(num_testing_samples)),axis=0)
+  
+  num_post_samples = 1000
+  samples_post  = generate_mua_samples(spk_post,epoch_post,100e-3,num_post_samples)
+  features_post = get_mua_features(samples_post)
+  X_post = features_post
+  
+  from sklearn.ensemble import RandomForestClassifier
+  from sklearn.datasets import make_classification
+  
+  clf = RandomForestClassifier(n_estimators=20, max_depth=32)
+  clf.fit(X_train, y_train)
+  errors = sum(np.abs(clf.predict(X_test)-y_test))
+  accuracy = (len(y_test)-errors)/len(y_test)
+  print(accuracy)
+  
+  #replay = clf.predict(X_post)
+  #print(replay)
