@@ -48,17 +48,20 @@ def get_rips(day, epoch):
   #plt.show()
   return rips,times,sigs,envs
 
-def generate_samples(eegs,window_size,num_samples):
+def generate_lfp_samples(eegs,window_size,num_samples):
   inds = np.random.randint(low=0, high=len(eegs[0])-window_size, size=(num_samples,))
   samples = np.array([[eeg[idx:idx+window_size] for eeg in eegs] for idx in inds])
-  means = np.mean(samples,axis=2)
-  return samples,means
+  return samples
 
-def get_samples(eegs,window_size,num_samples):
+def get_lfp_samples(eegs,window_size,num_samples):
   inds = np.linspace(start=0, stop=len(eegs[0])-window_size, num=num_samples).astype(int)
   samples = np.array([[eeg[idx:idx+window_size] for eeg in eegs] for idx in inds])
+  return samples
+
+def get_lfp_features(samples):
   means = np.mean(samples,axis=2)
-  return samples,means
+  #return means/np.mean(means,axis=0)
+  return means
 
 day = 0   # int in [0,5]
 epoch = 0 # int in [0,4]
@@ -75,30 +78,32 @@ window_size = int(window_time*1250)
 #print('delay =',window_time*1000,'ms')
 
 num_training_samples = 10000
-pre_training_samples, pre_training_means = generate_samples(pre_eegs,window_size,num_training_samples)
-maze_training_samples, maze_training_means = generate_samples(maze_eegs,window_size,num_training_samples)
-X_train = np.concatenate((pre_training_means, maze_training_means), axis=0)
-X_train = X_train/np.mean(X_train,axis=0)
+pre_training_samples  = generate_lfp_samples(pre_eegs,window_size,num_training_samples)
+maze_training_samples = generate_lfp_samples(maze_eegs,window_size,num_training_samples)
+features_pre  = get_lfp_features(pre_training_samples)
+features_maze = get_lfp_features(maze_training_samples)
+X_train = np.concatenate((features_pre, features_maze), axis=0)
 y_train = np.concatenate((np.zeros(num_training_samples),np.ones(num_training_samples)),axis=0)
 
 num_testing_samples = 1000
-pre_testing_samples, pre_testing_means = generate_samples(pre_eegs,window_size,num_testing_samples)
-maze_testing_samples, maze_testing_means = generate_samples(maze_eegs,window_size,num_testing_samples)
-X_test = np.concatenate((pre_testing_means, maze_testing_means), axis=0)
-X_test = X_test/np.mean(X_test,axis=0)
+pre_testing_samples  = generate_lfp_samples(pre_eegs,window_size,num_testing_samples)
+maze_testing_samples = generate_lfp_samples(maze_eegs,window_size,num_testing_samples)
+features_pre  = get_lfp_features(pre_testing_samples)
+features_maze = get_lfp_features(maze_testing_samples)
+X_test = np.concatenate((features_pre, features_maze), axis=0)
 y_test = np.concatenate((np.zeros(num_testing_samples),np.ones(num_testing_samples)),axis=0)
 
 num_post_samples = 1000
-post_samples, post_means = get_samples(post_eegs,window_size,num_post_samples)
-X_post = post_means
-X_post = X_post/np.mean(X_post,axis=0)
-#plt.plot(post_samples[0][0])
-#plt.show()
+post_samples = get_lfp_samples(post_eegs,window_size,num_post_samples)
+features_post = get_lfp_features(post_samples)
+X_post = features_post
 
 from sklearn.ensemble import RandomForestClassifier
 from sklearn.datasets import make_classification
 
 clf = RandomForestClassifier(n_estimators=20, max_depth=16)
+print(type(X_train))
+print(X_train.shape)
 clf.fit(X_train, y_train)
 errors = sum(np.abs(clf.predict(X_test)-y_test))
 accuracy = (len(y_test)-errors)/len(y_test)

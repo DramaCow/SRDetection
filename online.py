@@ -6,6 +6,7 @@ import matplotlib.pyplot as plt
 from spw_r import spw_r_detect, plot_ripples
 from math import floor, ceil
 from poptrack import *
+from ind_model import *
 
 spatial_bin_length = 2
 
@@ -99,18 +100,6 @@ def get_data(day, epoch):
   spk = np.array([np.sort((np.concatenate(tetrode) if len(tetrode) > 1 else np.array(tetrode)).flatten()) for tetrode in spk if len(tetrode) > 0])
 
   return pos, epoch_interval, spk
-
-def ind_model(M):
-  N,T = M.shape
-  count = np.sum(M,axis=1)
-  p = count/T
-  return p
-
-def prob_x_given_ind(x,params):
-  on  = x
-  off = 1-x
-  prob = np.prod(params[on])*np.prod(1-params[off])
-  return prob
 
 def generate_samples(spk,interval,window_size,num_samples):
   times = np.random.uniform(interval[0]+window_size, interval[1], size=(num_samples,))
