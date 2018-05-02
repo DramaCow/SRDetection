@@ -195,7 +195,7 @@ epoch_maze = np.array([max(epoch_lfp_maze[0],epoch_mua_maze[0]),min(epoch_lfp_ma
 epoch_post = np.array([max(epoch_lfp_post[0],epoch_mua_post[0]),min(epoch_lfp_post[1],epoch_mua_post[1])])
 
 # === LFP ===
-if 1:  
+if 0:  
   num_training_samples = 10000
   samples_pre  = generate_lfp_samples(pre_lfps,10e-3,epoch_pre,num_training_samples)
   samples_maze = generate_lfp_samples(maze_lfps,10e-3,epoch_maze,num_training_samples)
@@ -217,22 +217,9 @@ if 1:
   features_post = get_lfp_features(samples_post)
   X_post = features_post
   
-  from sklearn.ensemble import RandomForestClassifier
-  from sklearn.datasets import make_classification
-  
-  clf = RandomForestClassifier(n_estimators=20, max_depth=16)
-  clf.fit(X_train, y_train)
-  errors = sum(np.abs(clf.predict(X_test)-y_test))
-  accuracy = (len(y_test)-errors)/len(y_test)
-  print(accuracy)
-  
-  #replay = clf.predict(X_post)
-  #print(replay)
-
 # === MUA ===
 if 1: 
   dt = 10e-3
-  
   M_pre = construct_mat(
     spk_pre, (epoch_pre[0],epoch_pre[1]),
     epoch_pre[1]-epoch_pre[0], dt)
@@ -266,14 +253,14 @@ if 1:
   features_post = get_mua_features(samples_post)
   X_post = features_post
   
-  from sklearn.ensemble import RandomForestClassifier
-  from sklearn.datasets import make_classification
+from sklearn.ensemble import RandomForestClassifier
+from sklearn.datasets import make_classification
   
-  clf = RandomForestClassifier(n_estimators=20, max_depth=32)
-  clf.fit(X_train, y_train)
-  errors = sum(np.abs(clf.predict(X_test)-y_test))
-  accuracy = (len(y_test)-errors)/len(y_test)
-  print(accuracy)
+clf = RandomForestClassifier(n_estimators=20, max_depth=32)
+clf.fit(X_train, y_train)
+errors = sum(np.abs(clf.predict(X_test)-y_test))
+accuracy = (len(y_test)-errors)/len(y_test)
+print(accuracy)
   
-  #replay = clf.predict(X_post)
-  #print(replay)
+#replay = clf.predict(X_post)
+#print(replay)
