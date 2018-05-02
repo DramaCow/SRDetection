@@ -179,15 +179,23 @@ def get_mua_features(samples):
 # === MAIN ===
 # ============
 
+day   = 0 # int in [0,5]
+epoch = 0 # int in [0,4]
+
+_, epoch_lfp_pre,  pre_lfps  = get_lfp_data(day, epoch)
+_, epoch_lfp_maze, maze_lfps = get_lfp_data(day, epoch+1)
+_, epoch_lfp_post, post_lfps = get_lfp_data(day, epoch+2)
+  
+_,epoch_mua_pre, spk_pre  = get_mua_data(day, epoch)
+_,epoch_mua_maze,spk_maze = get_mua_data(day, epoch+1)
+_,epoch_mua_post,spk_post = get_mua_data(day, epoch+2)
+
+epoch_pre = np.array([max(epoch_lfp_pre[0],epoch_mua_pre[0]),min(epoch_lfp_pre[1],epoch_mua_pre[1])])
+epoch_maze = np.array([max(epoch_lfp_maze[0],epoch_mua_maze[0]),min(epoch_lfp_maze[1],epoch_mua_maze[1])])
+epoch_post = np.array([max(epoch_lfp_post[0],epoch_mua_post[0]),min(epoch_lfp_post[1],epoch_mua_post[1])])
+
 # === LFP ===
-if 1:
-  day = 0   # int in [0,5]
-  epoch = 0 # int in [0,4]
-  
-  _, epoch_pre,  pre_lfps  = get_lfp_data(day, epoch)
-  _, epoch_maze, maze_lfps = get_lfp_data(day, epoch+1)
-  _, epoch_post, post_lfps = get_lfp_data(day, epoch+2)
-  
+if 1:  
   num_training_samples = 10000
   samples_pre  = generate_lfp_samples(pre_lfps,10e-3,epoch_pre,num_training_samples)
   samples_maze = generate_lfp_samples(maze_lfps,10e-3,epoch_maze,num_training_samples)
@@ -222,14 +230,7 @@ if 1:
   #print(replay)
 
 # === MUA ===
-if 0:
-  day   = 0 # int in [0,5]
-  epoch = 0 # int in [0,4]
-  
-  _,epoch_pre, spk_pre  = get_mua_data(day, epoch)
-  _,epoch_maze,spk_maze = get_mua_data(day, epoch+1)
-  _,epoch_post,spk_post = get_mua_data(day, epoch+2)
-  
+if 1: 
   dt = 10e-3
   
   M_pre = construct_mat(
