@@ -36,15 +36,16 @@ def get_lfp_data(day, epoch):
     ['eeg'][0][day][0][epoch][0][tetrode][0]['samprate'][0][0][0] for tetrode in tetrodes
   ])
 
-  return pos, epoch_interval, eegs, starttimes, samprates
+  return pos, epoch_interval, (eegs, starttimes, samprates)
 
-def get_lfp_samples(eegs,window_size,inds):
+def get_lfp_samples(lfps,window_size,inds):
+  eegs,starttimes,samprates = lfps
   samples = np.array([[eeg[idx:idx+window_size] for eeg in eegs] for idx in inds])
   return samples
 
-def generate_lfp_samples(eegs,window_size,num_samples):
-  inds = np.random.randint(low=0, high=len(eegs[0])-window_size, size=(num_samples,))
-  samples = get_lfp_samples(eegs,window_size,inds)
+def generate_lfp_samples(lfps,window_size,internval,num_samples):
+  inds = np.random.randint(low=0, high=len(lfps[0][0])-window_size, size=(num_samples,))
+  samples = get_lfp_samples(lfps,window_size,inds)
   return samples
 
 def get_lfp_features(samples):
@@ -142,7 +143,7 @@ def get_mua_samples(spk,window_size,times):
   Ms = np.array([construct_mat(spk, (time-window_size,time), window_size, 10e-3) for time in times])
   return Ms
 
-def generate_mua_samples(spk,interval,window_size,num_samples):
+def generate_mua_samples(spk,window_size,interval,num_samples):
   times = np.random.uniform(interval[0]+window_size, interval[1], size=(num_samples,))
   Ms = get_mua_samples(spk,window_size,times)
   return Ms
@@ -161,36 +162,44 @@ def get_mua_features(samples):
   features = np.concatenate((ind_feat,poptrack_feat,rowsum_feat,colsum_feat),axis=1)
   return features
 
+# ======================
+# === BOTH FUNCTIONS ===
+# ======================
+
+# ============
+# === MAIN ===
+# ============
+
 # === LFP ===
 if 1:
   day = 0   # int in [0,5]
   epoch = 0 # int in [0,4]
   
-  _, pre_epoch, pre_eegs, pre_starttimes, pre_samprates = get_lfp_data(day, epoch)
-  _, maze_epoch, maze_eegs, maze_starttimes, maze_samprates = get_lfp_data(day, epoch+1)
-  _, post_epoch, post_eegs, post_starttimes, post_samprates = get_lfp_data(day, epoch+2)
+  _, epoch_pre,  pre_lfps  = get_lfp_data(day, epoch)
+  _, epoch_maze, maze_lfps = get_lfp_data(day, epoch+1)
+  _, epoch_post, post_lfps = get_lfp_data(day, epoch+2)
   
   window_time = 10e-3
   window_size = int(window_time*1250)
   
   num_training_samples = 10000
-  samples_pre  = generate_lfp_samples(pre_eegs,window_size,num_training_samples)
-  samples_maze = generate_lfp_samples(maze_eegs,window_size,num_training_samples)
+  samples_pre  = generate_lfp_samples(pre_lfps,window_size,epoch_pre,num_training_samples)
+  samples_maze = generate_lfp_samples(maze_lfps,window_size,epoch_maze,num_training_samples)
   features_pre  = get_lfp_features(samples_pre)
   features_maze = get_lfp_features(samples_maze)
   X_train = np.concatenate((features_pre, features_maze), axis=0)
   y_train = np.concatenate((np.zeros(num_training_samples),np.ones(num_training_samples)),axis=0)
   
   num_testing_samples = 1000
-  samples_pre  = generate_lfp_samples(pre_eegs,window_size,num_testing_samples)
-  samples_maze = generate_lfp_samples(maze_eegs,window_size,num_testing_samples)
+  samples_pre  = generate_lfp_samples(pre_lfps,window_size,epoch_pre,num_testing_samples)
+  samples_maze = generate_lfp_samples(maze_lfps,window_size,epoch_maze,num_testing_samples)
   features_pre  = get_lfp_features(samples_pre)
   features_maze = get_lfp_features(samples_maze)
   X_test = np.concatenate((features_pre, features_maze), axis=0)
   y_test = np.concatenate((np.zeros(num_testing_samples),np.ones(num_testing_samples)),axis=0)
   
   num_samples_post = 1000
-  samples_post = generate_lfp_samples(post_eegs,window_size,num_samples_post)
+  samples_post = generate_lfp_samples(post_lfps,window_size,epoch_post,num_samples_post)
   features_post = get_lfp_features(samples_post)
   X_post = features_post
   
@@ -230,23 +239,23 @@ if 1:
   poptrack_params_maze = poptrack(M_maze)
   
   num_training_samples = 10000
-  samples_pre  = generate_mua_samples(spk_pre,epoch_pre ,100e-3,num_training_samples)
-  samples_maze = generate_mua_samples(spk_maze,epoch_maze,100e-3,num_training_samples)
+  samples_pre  = generate_mua_samples(spk_pre,100e-3,epoch_pre,num_training_samples)
+  samples_maze = generate_mua_samples(spk_maze,100e-3,epoch_maze,num_training_samples)
   features_pre  = get_mua_features(samples_pre)
   features_maze = get_mua_features(samples_maze)
   X_train = np.concatenate((features_pre, features_maze), axis=0)
   y_train = np.concatenate((np.zeros(num_training_samples),np.ones(num_training_samples)),axis=0)
   
   num_testing_samples = 1000
-  samples_pre  = generate_mua_samples(spk_pre,epoch_pre ,100e-3,num_testing_samples)
-  samples_maze = generate_mua_samples(spk_maze,epoch_maze,100e-3,num_testing_samples)
+  samples_pre  = generate_mua_samples(spk_pre,100e-3,epoch_pre,num_testing_samples)
+  samples_maze = generate_mua_samples(spk_maze,100e-3,epoch_maze,num_testing_samples)
   features_pre  = get_mua_features(samples_pre)
   features_maze = get_mua_features(samples_maze)
   X_test = np.concatenate((features_pre, features_maze), axis=0)
   y_test = np.concatenate((np.zeros(num_testing_samples),np.ones(num_testing_samples)),axis=0)
   
   num_post_samples = 1000
-  samples_post  = generate_mua_samples(spk_post,epoch_post,100e-3,num_post_samples)
+  samples_post  = generate_mua_samples(spk_post,100e-3,epoch_post,num_post_samples)
   features_post = get_mua_features(samples_post)
   X_post = features_post
   
