@@ -6,7 +6,7 @@ import matplotlib.pyplot as plt
 from spw_r import spw_r_detect, plot_ripples
 
 day = 0   # int in [0,5]
-epoch = 2 # int in [0,4]
+epoch = 1 # int in [0,4]
 
 # pos info
 pos_mat = sio.loadmat('Con/conpos%02d.mat' % (day+1))
@@ -28,6 +28,7 @@ spatial_bin_length = 2
 #plt.plot(pos[:,1],pos[:,2],'k.')
 #plt.show()
 
+'''
 # eeg (lfp) info
 i = 2
 tetrodes = range(13,17)
@@ -48,3 +49,4 @@ rips,times,sigs,envs = spw_r_detect(eegs,samprates,starttimes)
 #plot_ripples(rips,times,sigs,envs,stride=50,delay=0.5)
 plot_ripples(rips,times,sigs,envs,window_size=900000,stride=50,delay=None)
 plt.show()
+'''

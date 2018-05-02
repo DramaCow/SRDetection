@@ -8,10 +8,11 @@ from lf import pos, spk, maze_epoch, spatial_bin_length
 lin_point = np.array([35,50])
 
 # === DECODER ===
-decoder = bd.Decoder(pos,spk,spatial_bin_length,lin_point)
-#f = decoder.calc_f_2d(maze_epoch)
+decoder = bd.Decoder(pos,spk,spatial_bin_length)
+f = decoder.calc_f_2d(maze_epoch)
 #bd.plot_fr_field_2d(f,1.0)
-f = decoder.calc_f_1d(maze_epoch)
+#decoder = bd.Decoder(pos,spk,spatial_bin_length,lin_point)
+#f = decoder.calc_f_1d(maze_epoch)
 #bd.plot_fr_field_1d(f,1.0)
 
 # === DETERMINE LIN-POINT ===
@@ -20,7 +21,11 @@ f = decoder.calc_f_1d(maze_epoch)
 #plt.imshow(accmask,origin='lower')
 #plt.show()
 
-'''
+points = np.array([np.array([y,x]) for y in range(decoder.accmask.shape[0]) for x in range(decoder.accmask.shape[1]) if decoder.accmask[y,x]==1])
+
+plt.imshow(decoder.accmask, cmap='gray', origin='lower')
+plt.show()
+
 # === TEST 2D ===
 fig = plt.figure()
 window = 0.5
@@ -36,6 +41,13 @@ for p in range(len(path_lengths)):
   probmat = decoder.prob_X_given_n(n,f,window)
   [argmax_p, x_] = bd.matmax(probmat)
   print('prob = %.3f, x_ =' % argmax_p, x_, end=', ')
+  if not decoder.accmask[tuple(x_)]:
+    for row in probmat:
+      for p in row:
+        print(p,end=' ')
+      print()
+    x_ = points[np.random.randint(len(points))]
+    #print('inaccessible')
 
   # plots
   plt.subplot(121)
@@ -64,7 +76,6 @@ print('number of close results = %d/%d' % (np.sum(path_lengths<10),len(path_leng
 print('min path length = %.2f' % np.min(path_lengths))
 print('max path length = %.2f' % np.max(path_lengths))
 '''
-
 # === TEST 1D ===
 fig = plt.figure()
 window = 0.5
@@ -103,3 +114,4 @@ print('average path length = %.2f' % np.mean(disparity))
 print('number of close results = %d/%d' % (np.sum(disparity<10),len(disparity)))
 print('min path length = %.2f' % np.min(disparity))
 print('max path length = %.2f' % np.max(disparity))
+'''

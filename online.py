@@ -241,11 +241,6 @@ if 0:
   X_test = np.concatenate((features_pre, features_maze), axis=0)
   y_test = np.concatenate((np.zeros(num_testing_samples),np.ones(num_testing_samples)),axis=0)
   
-  num_samples_post = 1000
-  samples_post = generate_lfp_samples(lfp_post,10e-3,epoch_post,num_samples_post)
-  features_post = get_lfp_features(samples_post)
-  X_post = features_post
-  
 # === MUA ===
 if 0: 
   num_training_samples = 10000
@@ -264,11 +259,6 @@ if 0:
   X_test = np.concatenate((features_pre, features_maze), axis=0)
   y_test = np.concatenate((np.zeros(num_testing_samples),np.ones(num_testing_samples)),axis=0)
   
-  num_post_samples = 1000
-  samples_post  = generate_mua_samples(spk_post,100e-3,epoch_post,num_post_samples)
-  features_post = get_mua_features(samples_post)
-  X_post = features_post
-
 # === BOTH ===
 if 1:
   num_training_samples = 10000
@@ -286,9 +276,11 @@ if 1:
   features_maze = get_features(samples_maze)
   X_test = np.concatenate((features_pre, features_maze), axis=0)
   y_test = np.concatenate((np.zeros(num_testing_samples),np.ones(num_testing_samples)),axis=0)
-  
-  num_post_samples = 1000
-  samples_post  = generate_samples(lfp_post,spk_post,100e-3,epoch_post,num_post_samples)
+
+  eegs,starttime,samprate = lfp_post 
+  window_samples = int(100e-3*samprate)
+  post_times = np.array([starttime + i/samprate for i in range(window_samples, window_samples+1000)])#len(eegs[0]))]) 
+  samples_post = get_samples(lfp_post,spk_post,100e-3,post_times)
   features_post = get_features(samples_post)
   X_post = features_post
   
@@ -297,9 +289,10 @@ from sklearn.datasets import make_classification
   
 clf = RandomForestClassifier(n_estimators=20, max_depth=32)
 clf.fit(X_train, y_train)
+
 errors = sum(np.abs(clf.predict(X_test)-y_test))
 accuracy = (len(y_test)-errors)/len(y_test)
 print(accuracy)
   
-#replay = clf.predict(X_post)
-#print(replay)
+replay = clf.predict(X_post)
+print(replay)

@@ -223,13 +223,13 @@ class Decoder:
   # likelihood
   def prob_n_given_X(self,n,f,tau):
     return np.array(
-      [[self.prob_n_given_x1d(n,(j,i),f,tau) for i in range(self.map_dimensions[1])] for j in range(self.map_dimensions[0])]
+      [[self.prob_n_given_x(n,(j,i),f,tau) for i in range(self.map_dimensions[1])] for j in range(self.map_dimensions[0])]
     )
 
   # posterior
   def prob_X_given_n(self,n,f,tau):
-    #prob = self.p_x*self.prob_n_given_X(n,f,tau)
-    prob = self.prob_n_given_X(n,f,tau)
+    prob = self.p_x*self.prob_n_given_X(n,f,tau)
+    #prob = self.prob_n_given_X(n,f,tau)
     C = 1/np.sum(np.sum(prob)) if np.sum(np.sum(prob)) > 0 else 0
     return C*prob
 
