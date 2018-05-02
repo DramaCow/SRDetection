@@ -175,6 +175,23 @@ def get_mua_features(samples):
 # === BOTH FUNCTIONS ===
 # ======================
 
+def get_samples(lfp,spk,window_size,times):
+  lfp = get_lfp_samples(lfp,window_size,times)
+  mua = get_mua_samples(spk,window_size,times)
+  return (lfp,mua)
+
+def generate_samples(lfp,spk,window_size,interval,num_samples):
+  times = np.random.uniform(interval[0]+window_size, interval[1], size=(num_samples,))
+  samples = get_samples(lfp,spk,window_size,times)
+  return samples
+
+def get_features(samples):
+  samples_lfp, samples_mua = samples
+  features_lfp = get_lfp_features(samples_lfp)
+  features_mua = get_mua_features(samples_mua)
+  features = np.concatenate((features_lfp,features_mua),axis=1)
+  return features
+
 # ============
 # === MAIN ===
 # ============
@@ -182,9 +199,9 @@ def get_mua_features(samples):
 day   = 0 # int in [0,5]
 epoch = 0 # int in [0,4]
 
-_, epoch_lfp_pre,  pre_lfps  = get_lfp_data(day, epoch)
-_, epoch_lfp_maze, maze_lfps = get_lfp_data(day, epoch+1)
-_, epoch_lfp_post, post_lfps = get_lfp_data(day, epoch+2)
+_, epoch_lfp_pre,  lfp_pre  = get_lfp_data(day, epoch)
+_, epoch_lfp_maze, lfp_maze = get_lfp_data(day, epoch+1)
+_, epoch_lfp_post, lfp_post = get_lfp_data(day, epoch+2)
   
 _,epoch_mua_pre, spk_pre  = get_mua_data(day, epoch)
 _,epoch_mua_maze,spk_maze = get_mua_data(day, epoch+1)
@@ -194,44 +211,43 @@ epoch_pre = np.array([max(epoch_lfp_pre[0],epoch_mua_pre[0]),min(epoch_lfp_pre[1
 epoch_maze = np.array([max(epoch_lfp_maze[0],epoch_mua_maze[0]),min(epoch_lfp_maze[1],epoch_mua_maze[1])])
 epoch_post = np.array([max(epoch_lfp_post[0],epoch_mua_post[0]),min(epoch_lfp_post[1],epoch_mua_post[1])])
 
+dt = 10e-3
+M_pre = construct_mat(
+  spk_pre, (epoch_pre[0],epoch_pre[1]),
+  epoch_pre[1]-epoch_pre[0], dt)
+M_maze = construct_mat(
+  spk_maze, (epoch_maze[0],epoch_maze[1]),
+  epoch_maze[1]-epoch_maze[0], dt)
+ind_params_pre  = ind_model(M_pre )
+ind_params_maze = ind_model(M_maze)
+poptrack_params_pre  = poptrack(M_pre )
+poptrack_params_maze = poptrack(M_maze)
+
 # === LFP ===
 if 0:  
   num_training_samples = 10000
-  samples_pre  = generate_lfp_samples(pre_lfps,10e-3,epoch_pre,num_training_samples)
-  samples_maze = generate_lfp_samples(maze_lfps,10e-3,epoch_maze,num_training_samples)
+  samples_pre  = generate_lfp_samples(lfp_pre,10e-3,epoch_pre,num_training_samples)
+  samples_maze = generate_lfp_samples(lfp_maze,10e-3,epoch_maze,num_training_samples)
   features_pre  = get_lfp_features(samples_pre)
   features_maze = get_lfp_features(samples_maze)
   X_train = np.concatenate((features_pre, features_maze), axis=0)
   y_train = np.concatenate((np.zeros(num_training_samples),np.ones(num_training_samples)),axis=0)
   
   num_testing_samples = 1000
-  samples_pre  = generate_lfp_samples(pre_lfps,10e-3,epoch_pre,num_testing_samples)
-  samples_maze = generate_lfp_samples(maze_lfps,10e-3,epoch_maze,num_testing_samples)
+  samples_pre  = generate_lfp_samples(lfp_pre,10e-3,epoch_pre,num_testing_samples)
+  samples_maze = generate_lfp_samples(lfp_maze,10e-3,epoch_maze,num_testing_samples)
   features_pre  = get_lfp_features(samples_pre)
   features_maze = get_lfp_features(samples_maze)
   X_test = np.concatenate((features_pre, features_maze), axis=0)
   y_test = np.concatenate((np.zeros(num_testing_samples),np.ones(num_testing_samples)),axis=0)
   
   num_samples_post = 1000
-  samples_post = generate_lfp_samples(post_lfps,10e-3,epoch_post,num_samples_post)
+  samples_post = generate_lfp_samples(lfp_post,10e-3,epoch_post,num_samples_post)
   features_post = get_lfp_features(samples_post)
   X_post = features_post
   
 # === MUA ===
-if 1: 
-  dt = 10e-3
-  M_pre = construct_mat(
-    spk_pre, (epoch_pre[0],epoch_pre[1]),
-    epoch_pre[1]-epoch_pre[0], dt)
-  M_maze = construct_mat(
-    spk_maze, (epoch_maze[0],epoch_maze[1]),
-    epoch_maze[1]-epoch_maze[0], dt)
-  
-  ind_params_pre  = ind_model(M_pre )
-  ind_params_maze = ind_model(M_maze)
-  poptrack_params_pre  = poptrack(M_pre )
-  poptrack_params_maze = poptrack(M_maze)
-  
+if 0: 
   num_training_samples = 10000
   samples_pre  = generate_mua_samples(spk_pre,100e-3,epoch_pre,num_training_samples)
   samples_maze = generate_mua_samples(spk_maze,100e-3,epoch_maze,num_training_samples)
@@ -251,6 +267,29 @@ if 1:
   num_post_samples = 1000
   samples_post  = generate_mua_samples(spk_post,100e-3,epoch_post,num_post_samples)
   features_post = get_mua_features(samples_post)
+  X_post = features_post
+
+# === BOTH ===
+if 1:
+  num_training_samples = 10000
+  samples_pre  = generate_samples(lfp_pre,spk_pre,100e-3,epoch_pre,num_training_samples)
+  samples_maze = generate_samples(lfp_maze,spk_maze,100e-3,epoch_maze,num_training_samples)
+  features_pre  = get_features(samples_pre)
+  features_maze = get_features(samples_maze)
+  X_train = np.concatenate((features_pre, features_maze), axis=0)
+  y_train = np.concatenate((np.zeros(num_training_samples),np.ones(num_training_samples)),axis=0)
+  
+  num_testing_samples = 1000
+  samples_pre  = generate_samples(lfp_pre,spk_pre,100e-3,epoch_pre,num_testing_samples)
+  samples_maze = generate_samples(lfp_maze,spk_maze,100e-3,epoch_maze,num_testing_samples)
+  features_pre  = get_features(samples_pre)
+  features_maze = get_features(samples_maze)
+  X_test = np.concatenate((features_pre, features_maze), axis=0)
+  y_test = np.concatenate((np.zeros(num_testing_samples),np.ones(num_testing_samples)),axis=0)
+  
+  num_post_samples = 1000
+  samples_post  = generate_samples(lfp_post,spk_post,100e-3,epoch_post,num_post_samples)
+  features_post = get_features(samples_post)
   X_post = features_post
   
 from sklearn.ensemble import RandomForestClassifier
