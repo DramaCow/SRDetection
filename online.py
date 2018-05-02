@@ -36,16 +36,25 @@ def get_lfp_data(day, epoch):
     ['eeg'][0][day][0][epoch][0][tetrode][0]['samprate'][0][0][0] for tetrode in tetrodes
   ])
 
-  return pos, epoch_interval, (eegs, starttimes, samprates)
+  num_samples = np.mean([len(eeg) for eeg in eegs])
+  starttime = np.mean(starttimes)
+  samprate = np.mean(samprates)
+  endtime = starttime + (num_samples/samprate)
+  epoch_interval = np.array([max(epoch_interval[0],starttime),min(epoch_interval[1],endtime)])
 
-def get_lfp_samples(lfps,window_size,inds):
-  eegs,starttimes,samprates = lfps
-  samples = np.array([[eeg[idx:idx+window_size] for eeg in eegs] for idx in inds])
+  return pos, epoch_interval, (eegs, starttime, samprate)
+
+def get_lfp_samples(lfps,window_size,times):
+  eegs,starttime,samprate = lfps
+  window_samples = int(window_size*samprate)
+  inds = np.round([(time-starttime)*samprate for time in times]).astype(int)
+  samples = np.array([[eeg[idx-window_samples:idx] for eeg in eegs] for idx in inds])
   return samples
 
-def generate_lfp_samples(lfps,window_size,internval,num_samples):
-  inds = np.random.randint(low=0, high=len(lfps[0][0])-window_size, size=(num_samples,))
-  samples = get_lfp_samples(lfps,window_size,inds)
+def generate_lfp_samples(lfps,window_size,interval,num_samples):
+  times = np.random.uniform(interval[0]+window_size, interval[1], size=(num_samples,))
+  samples = get_lfp_samples(lfps,window_size,times)
+  shape = samples[0][0].shape
   return samples
 
 def get_lfp_features(samples):
@@ -179,27 +188,24 @@ if 1:
   _, epoch_maze, maze_lfps = get_lfp_data(day, epoch+1)
   _, epoch_post, post_lfps = get_lfp_data(day, epoch+2)
   
-  window_time = 10e-3
-  window_size = int(window_time*1250)
-  
   num_training_samples = 10000
-  samples_pre  = generate_lfp_samples(pre_lfps,window_size,epoch_pre,num_training_samples)
-  samples_maze = generate_lfp_samples(maze_lfps,window_size,epoch_maze,num_training_samples)
+  samples_pre  = generate_lfp_samples(pre_lfps,10e-3,epoch_pre,num_training_samples)
+  samples_maze = generate_lfp_samples(maze_lfps,10e-3,epoch_maze,num_training_samples)
   features_pre  = get_lfp_features(samples_pre)
   features_maze = get_lfp_features(samples_maze)
   X_train = np.concatenate((features_pre, features_maze), axis=0)
   y_train = np.concatenate((np.zeros(num_training_samples),np.ones(num_training_samples)),axis=0)
   
   num_testing_samples = 1000
-  samples_pre  = generate_lfp_samples(pre_lfps,window_size,epoch_pre,num_testing_samples)
-  samples_maze = generate_lfp_samples(maze_lfps,window_size,epoch_maze,num_testing_samples)
+  samples_pre  = generate_lfp_samples(pre_lfps,10e-3,epoch_pre,num_testing_samples)
+  samples_maze = generate_lfp_samples(maze_lfps,10e-3,epoch_maze,num_testing_samples)
   features_pre  = get_lfp_features(samples_pre)
   features_maze = get_lfp_features(samples_maze)
   X_test = np.concatenate((features_pre, features_maze), axis=0)
   y_test = np.concatenate((np.zeros(num_testing_samples),np.ones(num_testing_samples)),axis=0)
   
   num_samples_post = 1000
-  samples_post = generate_lfp_samples(post_lfps,window_size,epoch_post,num_samples_post)
+  samples_post = generate_lfp_samples(post_lfps,10e-3,epoch_post,num_samples_post)
   features_post = get_lfp_features(samples_post)
   X_post = features_post
   
@@ -216,7 +222,7 @@ if 1:
   #print(replay)
 
 # === MUA ===
-if 1:
+if 0:
   day   = 0 # int in [0,5]
   epoch = 0 # int in [0,4]
   
