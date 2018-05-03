@@ -5,6 +5,8 @@ from math import factorial
 from astar import astar, create_grid, Node
 from dijkstras import shortest_path_mat
 
+from scipy import ndimage
+
 def plot_fr_field_2d(f,delay=None):
   for i in range(len(f)):
     maxval = np.max(np.max(f[i]))
@@ -14,7 +16,8 @@ def plot_fr_field_2d(f,delay=None):
       if delay:
         plt.show(block=False) ; plt.pause(delay)
       else:
-        plt.show()
+        #plt.show()
+        plt.savefig('occfr%d.png' % i)
   plt.close()
 
 def plot_fr_field_1d(f,delay=None):
@@ -79,6 +82,13 @@ class Decoder:
     self.accmask = np.array(
       [[posmask[j,i] or sum_neighbours(posmask,i,j)>2 for i in range(posmask.shape[1])] for j in range(posmask.shape[0])]
     )
+
+    # only consider the biggest island (to prevent invalid path in shortest path calculation)
+    labeled_array, num_features = ndimage.label(self.accmask, np.ones((3,3)))
+    label_counts = np.array([np.sum(labeled_array==i) for i in range(1,num_features+1)])
+    self.accmask = (labeled_array==np.argmax(label_counts)+1).astype(int)
+    #plt.imshow(self.accmask)
+    #plt.show()
 
     # convert spatial inform to 1D if linearisation function has been provided
     if lin_point is not None:
@@ -230,6 +240,7 @@ class Decoder:
   def prob_X_given_n(self,n,f,tau):
     prob = self.p_x*self.prob_n_given_X(n,f,tau)
     #prob = self.prob_n_given_X(n,f,tau)
+    #prob = self.p_x
     C = 1/np.sum(np.sum(prob)) if np.sum(np.sum(prob)) > 0 else 0
     return C*prob
 
@@ -285,7 +296,7 @@ class Decoder:
 
   # returns number of spikes and position within an interval
   def approx_n_and_x(self,interval,time_bin_size):
-    num_time_bins = int(np.ceil((interval[1]-interval[0])/time_bin_size))
+    num_time_bins = int(np.round((interval[1]-interval[0])/time_bin_size))
     pos = self.get_pos(interval)
     tidx = np.floor((pos[:,0]-np.min(pos[:,0]))/time_bin_size)
     x = self.pos_to_x(np.array([np.mean(pos[tidx==i,1:3],axis=0) for i in range(num_time_bins)]))

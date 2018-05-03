@@ -74,6 +74,9 @@ def plot_ripples(rips,times,sigs,envs,window_size=750,stride=20,duration=None,de
   fig = plt.figure()
   for i in np.arange(0,duration,stride):
     ax = plt.axes()
+    plt.ylim([-0.5,len(sigs_n)-0.5])
+    plt.xlabel('time (s)')
+    plt.ylabel('tetrodes')
     for j,(time,sig,env) in enumerate(zip(times,sigs_n,envs_n)):
       start = i
       end = i+window_size
@@ -85,11 +88,8 @@ def plot_ripples(rips,times,sigs,envs,window_size=750,stride=20,duration=None,de
       std = 3
       plt.plot(time[start:end],sig[start:end]+j,'k-')
       plt.plot(time[start:end],env[start:end]+j,'r-')
-      plt.plot([time[start],time[end]],[np.mean(env)+std*np.std(env)+j,np.mean(env)+std*np.std(env)+j])
+      plt.plot([time[start],time[end]],[np.mean(env)+std*np.std(env)+j,np.mean(env)+std*np.std(env)+j], color='#7f7f7f')
       plt.xlim([time[start],time[end]])
-      plt.ylim([-0.5,len(sigs_n)-0.5])
-      plt.xlabel('time (s)')
-      plt.ylabel('tetrodes')
     if delay is None:
       plt.show(); fig.clf()
     else:
