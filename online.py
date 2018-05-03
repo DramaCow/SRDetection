@@ -268,6 +268,32 @@ if 1:
   features_maze = get_features(samples_maze)
   X_train = np.concatenate((features_pre, features_maze), axis=0)
   y_train = np.concatenate((np.zeros(num_training_samples),np.ones(num_training_samples)),axis=0)
+
+  tet_val = features_pre[:,0:30]
+  for i in range(tet_val.shape[1]):
+    tet_hist,tet_edges = np.histogram(tet_val[:,i],bins=32)
+    tet_hist = tet_hist/np.sum(tet_hist)
+    if np.min(tet_edges) > -1000:
+      plt.plot((tet_edges[1:] + tet_edges[:-1]) / 2, tet_hist)
+  plt.ylabel('proportion')
+  plt.xlabel('mean LFP amplitude within time window')
+  plt.xlim([-390,-330])
+  plt.title('Per-tetrode proportion of mean LFP amplitudes from pre-epoch samples')
+  plt.savefig('ptet'+str(i)+'.png')
+  plt.show() 
+
+  tet_val = features_maze[:,0:30]
+  for i in range(tet_val.shape[1]):
+    tet_hist,tet_edges = np.histogram(tet_val[:,i],bins=32)
+    tet_hist = tet_hist/np.sum(tet_hist)
+    if np.min(tet_edges) > -1000:
+      plt.plot((tet_edges[1:] + tet_edges[:-1]) / 2, tet_hist)
+  plt.ylabel('proportion')
+  plt.xlabel('mean LFP amplitude within time window')
+  plt.xlim([-390,-330])
+  plt.title('Per-tetrode proportion of mean LFP amplitudes from maze-epoch samples')
+  plt.savefig('mtet'+str(i)+'.png')
+  plt.show() 
   
   num_testing_samples = 1000
   samples_pre  = generate_samples(lfp_pre,spk_pre,100e-3,epoch_pre,num_testing_samples)
