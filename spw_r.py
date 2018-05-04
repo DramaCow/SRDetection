@@ -128,3 +128,19 @@ def spw_r_detect(eegs,samprates,starttimes,min_length=15e-3):
     rips = merge_intervals(rips[rips[:,0].argsort()]) 
 
   return rips,times,sigs,envs
+
+def spw_r_detect2(eegs,samprate,starttime,min_length=15e-3):
+  # time each sample occurs
+  times = np.array([[(1/samprate)*i+starttime for i in range(len(eeg))] for eeg in eegs])
+
+  # bandpass filtered signals and corresponding envelopes
+  sigs = np.array([butter_bandpass_filter(eeg,100,200,samprate) for eeg in eegs])
+  envs = np.array([gaussian_filter1d(np.abs(hilbert(sig)),1) for sig in sigs])
+
+  # mean and s.d of each filtered-signal envelopes
+  sds = np.array([np.mean(env)+2*np.std(env) for env in envs])
+
+  # intervals w/ envelope greater than mean + 2*s.d (for longer than min_length)
+  peaks = np.array([env > sd for (env,sd) in zip(envs,sds)]).astype(int)
+  
+  return (np.sum(peaks,axis=0)>0).astype(int)
