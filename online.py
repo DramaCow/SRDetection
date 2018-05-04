@@ -3,7 +3,7 @@ import numpy as np
 import scipy.io as sio
 from scipy.signal import hilbert, gaussian
 import matplotlib.pyplot as plt
-from spw_r import spw_r_detect, plot_ripples
+from spw_r import spw_r_detect, spw_r_detect2, vec_to_intervals, plot_ripples
 from math import floor, ceil
 from poptrack import *
 from ind_model import *
@@ -250,7 +250,8 @@ for M,lbl in zip([M_pre,M_maze,M_post],['pre','awake','post']):
 '''
 
 #window_size = 40e-3
-window_size = float(sys.argv[1])
+window_size = 20e-3
+#window_size = float(sys.argv[1])
 
 # === LFP ===
 if 0:  
@@ -271,7 +272,7 @@ if 0:
   y_test = np.concatenate((np.zeros(num_testing_samples),np.ones(num_testing_samples)),axis=0)
   
 # === MUA ===
-if 1: 
+if 0: 
   num_training_samples = 10000
   samples_pre  = generate_mua_samples(spk_pre,window_size,epoch_pre,num_training_samples)
   samples_maze = generate_mua_samples(spk_maze,window_size,epoch_maze,num_training_samples)
@@ -289,7 +290,7 @@ if 1:
   y_test = np.concatenate((np.zeros(num_testing_samples),np.ones(num_testing_samples)),axis=0)
   
 # === BOTH ===
-if 0:
+if 1:
   num_training_samples = 10000
   samples_pre  = generate_samples(lfp_pre,spk_pre,window_size,epoch_pre,num_training_samples)
   samples_maze = generate_samples(lfp_maze,spk_maze,window_size,epoch_maze,num_training_samples)
@@ -334,28 +335,35 @@ if 0:
   X_test = np.concatenate((features_pre, features_maze), axis=0)
   y_test = np.concatenate((np.zeros(num_testing_samples),np.ones(num_testing_samples)),axis=0)
 
-  '''
   eegs,starttime,samprate = lfp_post 
-  window_samples = int(100e-3*samprate)
+  window_samples = int(window_size*samprate)
   post_times = np.array([starttime + i/samprate for i in range(window_samples, window_samples+1000)])#len(eegs[0]))]) 
-  samples_post = get_samples(lfp_post,spk_post,100e-3,post_times)
+  samples_post = get_samples(lfp_post,spk_post,window_size,post_times)
   features_post = get_features(samples_post)
   X_post = features_post
-  '''
+  print(X_train.shape)
+  print(X_post.shape)
   
 from sklearn.ensemble import RandomForestClassifier
 from sklearn.datasets import make_classification
 from sklearn import linear_model
 from sklearn import neighbors
   
-#clf = RandomForestClassifier(n_estimators=20, max_depth=32)
+clf = RandomForestClassifier(n_estimators=20, max_depth=32)
 #clf = neighbors.KNeighborsClassifier()
-clf = linear_model.LogisticRegression()
+#clf = linear_model.LogisticRegression()
 clf.fit(X_train, y_train)
 
-errors = sum(np.abs(np.round(clf.predict(X_test))-y_test))
-accuracy = (len(y_test)-errors)/len(y_test)
-print(accuracy)
+#errors = sum(np.abs(clf.predict(X_test)-y_test))
+#accuracy = (len(y_test)-errors)/len(y_test)
+#print(accuracy)
   
-#replay = clf.predict(X_post)
-#print(replay)
+replay = np.append(np.zeros(window_samples), clf.predict(X_post))
+eegs,starttime,samprate = lfp_post
+window_samples = int(window_size*samprate)
+rips,times,sigs,envs = spw_r_detect2(eegs,starttime,samprate)
+rips = rips[0:1000+window_samples]
+rip_ints = vec_to_intervals(rips)
+#plot_ripples(rip_ints,times,sigs,envs,delay=None)
+
+replay = np.logical_and(replay, rips).astype(int)

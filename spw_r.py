@@ -58,7 +58,7 @@ def plot_intervals(intervals):
   plt.plot(line, np.zeros(len(line)))
   plt.show()
 
-def plot_ripples(rips,times,sigs,envs,window_size=750,stride=20,duration=None,delay=0.1):
+def plot_ripples(rips,times,sigs,envs,window_size=1000,stride=20,duration=None,delay=0.1):
   lims = np.array([max(np.abs(np.min(sig)),np.abs(np.max(sig))) for sig in sigs]) # largest y-dist from zero
   sigs_n = np.array([sig/(2*lim) for (sig,lim) in zip(sigs,lims)])                # normalised signal
   envs_n = np.array([env/(2*lim) for (env,lim) in zip(envs,lims)])                # normalised envelope
@@ -143,4 +143,4 @@ def spw_r_detect2(eegs,samprate,starttime,min_length=15e-3):
   # intervals w/ envelope greater than mean + 2*s.d (for longer than min_length)
   peaks = np.array([env > sd for (env,sd) in zip(envs,sds)]).astype(int)
   
-  return (np.sum(peaks,axis=0)>0).astype(int)
+  return (np.sum(peaks,axis=0)>0).astype(int),times,sigs,envs
